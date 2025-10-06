@@ -1,89 +1,73 @@
 import Matter from "matter-js";
 
 function initializeMatter() {
-  const Engine = Matter.Engine;
-  const Render = Matter.Render;
-  const Runner = Matter.Runner;
-  const Composites = Matter.Composites;
-  const Common = Matter.Common;
-  const MouseConstraint = Matter.MouseConstraint;
-  const Mouse = Matter.Mouse;
-  const Composite = Matter.Composite;
-  const Bodies = Matter.Bodies;
+  const windowWidth = window.innerWidth;
+  const windowHeight = window.innerHeight;
+  const wallDepth = 50;
 
-  // create engine
-  const engine = Engine.create();
-  const world = engine.world;
-
-  // create renderer
-  const render = Render.create({
+  const engine = Matter.Engine.create();
+  const runner = Matter.Runner.create();
+  Matter.Runner.run(runner, engine);
+  const render = Matter.Render.create({
     element: document.body,
     engine,
     options: {
-      width: 800,
-      height: 600,
+      width: windowWidth,
+      height: windowHeight,
       showAngleIndicator: true,
-    }
+    },
   });
-  Render.run(render);
+  Matter.Render.run(render);
 
-  // create runner
-  const runner = Runner.create();
-  Runner.run(runner, engine);
+  addMouseControl(engine, render);
+  addWalls(engine, windowWidth, windowHeight, wallDepth);
+  addBodies(engine);
+}
 
-  // add bodies
-  const stack = Composites.stack(20, 20, 10, 5, 0, 0, function (x: number, y: number) {
-    const sides = Math.round(Common.random(1, 8));
+function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
+  render.mouse = Matter.Mouse.create(render.canvas);
+  Matter.Composite.add(engine.world, Matter.MouseConstraint.create(engine));
+}
 
-    // round the edges of some bodies
-    let chamfer = null;
-    if (sides > 2 && Common.random() > 0.7) {
-      chamfer = {
-        radius: 10
-      };
-    }
+function addWalls(
+  engine: Matter.Engine,
+  width: number,
+  height: number,
+  depth: number
+) {
+  const wallProps: [number, number, number, number][] = [
+    [0, height / 2, depth, height],
+    [width, height / 2, depth, height],
+    [width / 2, 0, width, depth],
+    [width / 2, height, width, depth],
+  ];
+  const walls: Matter.Body[] = wallProps.map((props) =>
+    Matter.Bodies.rectangle(...props, { isStatic: true })
+  );
+  Matter.Composite.add(engine.world, walls);
+}
 
-    switch (Math.round(Common.random(0, 1))) {
-      case 0:
-        if (Common.random() < 0.8) {
-          return Bodies.rectangle(x, y, Common.random(25, 50), Common.random(25, 50), { chamfer: chamfer ?? undefined });
-        } else {
-          return Bodies.rectangle(x, y, Common.random(80, 120), Common.random(25, 30), { chamfer: chamfer ?? undefined });
-        }
-      case 1:
-        return Bodies.polygon(x, y, sides, Common.random(25, 50), { chamfer: chamfer ?? undefined });
-    }
-  });
-  Composite.add(world, stack);
-
-  // add walls
-  Composite.add(world, [
-    Bodies.rectangle(400, 0, 800, 50, { isStatic: true }),
-    Bodies.rectangle(400, 600, 800, 50, { isStatic: true }),
-    Bodies.rectangle(800, 300, 50, 600, { isStatic: true }),
-    Bodies.rectangle(0, 300, 50, 600, { isStatic: true })
-  ]);
-
-  // add mouse control
-  const mouse = Mouse.create(render.canvas);
-  const mouseConstraint = MouseConstraint.create(engine, {
-    mouse,
-    constraint: {
-      stiffness: 0.2,
-      render: {
-        visible: false
-      }
-    }
-  });
-  Composite.add(world, mouseConstraint);
-  render.mouse = mouse;
-
-  // fit the render viewport to the scene
-  Render.lookAt(render, {
-    min: { x: 0, y: 0 },
-    max: { x: 800, y: 600 }
-  });
+function addBodies(engine: Matter.Engine) {
+  function addBody(x: number, y: number): Matter.Body {
+    const sides = Math.round(Matter.Common.random(1, 8));
+    const chamfer: Matter.IChamfer | undefined =
+      sides > 2 && Matter.Common.random() > 0.7 ? { radius: 10 } : undefined;
+    return Math.round(Matter.Common.random(0, 1)) === 0
+      ? Matter.Bodies.rectangle(
+          x,
+          y,
+          Matter.Common.random() < 0.8
+            ? Matter.Common.random(25, 50)
+            : Matter.Common.random(80, 120),
+          Matter.Common.random(25, 50),
+          { chamfer }
+        )
+      : Matter.Bodies.polygon(x, y, sides, Matter.Common.random(25, 50), {
+          chamfer,
+        });
+  }
+  const stack = Matter.Composites.stack(20, 20, 10, 5, 0, 0, addBody);
+  Matter.Composite.add(engine.world, stack);
 }
 
 export default initializeMatter;
-
