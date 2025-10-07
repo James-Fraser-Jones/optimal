@@ -1,9 +1,15 @@
 import Matter from "matter-js";
+import * as Lambda from "./lambda";
+
+const yGap: number = 50;
+const abstractionRadius = 40;
+const applicationRadius = 100;
+const variableRadius = 60;
+
+const wallDepth = 50;
 
 function initializeMatter() {
-  const windowWidth = window.innerWidth;
-  const windowHeight = window.innerHeight;
-  const wallDepth = 50;
+  const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
 
   const engine = Matter.Engine.create();
   const runner = Matter.Runner.create();
@@ -14,14 +20,13 @@ function initializeMatter() {
     options: {
       width: windowWidth,
       height: windowHeight,
-      showAngleIndicator: true,
     },
   });
   Matter.Render.run(render);
 
   addMouseControl(engine, render);
-  addWalls(engine, windowWidth, windowHeight, wallDepth);
-  addBodies(engine);
+  //addWalls(engine.world);
+  addExpressionExample(engine.world, Lambda.S);
 }
 
 function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
@@ -29,25 +34,196 @@ function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
   Matter.Composite.add(engine.world, Matter.MouseConstraint.create(engine));
 }
 
-function addWalls(
-  engine: Matter.Engine,
-  width: number,
-  height: number,
-  depth: number
-) {
+function addWalls(world: Matter.World) {
+  const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
   const wallProps: [number, number, number, number][] = [
-    [0, height / 2, depth, height],
-    [width, height / 2, depth, height],
-    [width / 2, 0, width, depth],
-    [width / 2, height, width, depth],
+    [0, windowHeight / 2, wallDepth, windowHeight],
+    [windowWidth, windowHeight / 2, wallDepth, windowHeight],
+    [windowWidth / 2, 0, windowWidth, wallDepth],
+    [windowWidth / 2, windowHeight, windowWidth, wallDepth],
   ];
   const walls: Matter.Body[] = wallProps.map((props) =>
     Matter.Bodies.rectangle(...props, { isStatic: true })
   );
-  Matter.Composite.add(engine.world, walls);
+  Matter.Composite.add(world, walls);
 }
 
-function addBodies(engine: Matter.Engine) {
+function addExpressionExample(
+  world: Matter.World,
+  expression: Lambda.Expression
+) {
+  const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
+
+  let height = abstractionRadius + yGap;
+  const body = Matter.Bodies.polygon(
+    windowWidth / 2,
+    height,
+    4,
+    abstractionRadius,
+    {
+      angle: (1 * Math.PI) / 4,
+    }
+  );
+  const constraint = Matter.Constraint.create({
+    pointA: { x: windowWidth / 2, y: 0 },
+    bodyB: body,
+    pointB: {
+      x: 0,
+      y: -abstractionRadius,
+    },
+  });
+  height += abstractionRadius + yGap;
+
+  height += applicationRadius;
+  const body2 = Matter.Bodies.polygon(
+    windowWidth / 2,
+    height,
+    3,
+    applicationRadius,
+    {
+      angle: (3 * Math.PI) / 6,
+    }
+  );
+  const constraint2 = Matter.Constraint.create({
+    bodyA: body,
+    pointA: {
+      x: 0,
+      y: abstractionRadius,
+    },
+    bodyB: body2,
+    pointB: {
+      x: 0,
+      y: -applicationRadius,
+    },
+  });
+  height += applicationRadius * Math.sin((5 * Math.PI) / 6) + yGap;
+
+  height += variableRadius;
+  const body3 = Matter.Bodies.circle(
+    windowWidth / 2 + applicationRadius * Math.cos((1 * Math.PI) / 6),
+    height,
+    variableRadius
+  );
+  const constraint3 = Matter.Constraint.create({
+    bodyA: body2,
+    pointA: {
+      x: applicationRadius * Math.cos((1 * Math.PI) / 6),
+      y: applicationRadius * Math.sin((5 * Math.PI) / 6),
+    },
+    bodyB: body3,
+    pointB: { x: 0, y: -variableRadius },
+  });
+  const body4 = Matter.Bodies.circle(
+    windowWidth / 2 - applicationRadius * Math.cos((1 * Math.PI) / 6),
+    height,
+    variableRadius
+  );
+  const constraint4 = Matter.Constraint.create({
+    bodyA: body2,
+    pointA: {
+      x: applicationRadius * Math.cos((5 * Math.PI) / 6),
+      y: applicationRadius * Math.sin((5 * Math.PI) / 6),
+    },
+    bodyB: body4,
+    pointB: { x: 0, y: -variableRadius },
+  });
+
+  Matter.Composite.add(world, [
+    body,
+    constraint,
+    body2,
+    constraint2,
+    body3,
+    constraint3,
+    body4,
+    constraint4,
+  ]);
+}
+
+function addConstraintsExample(engine: Matter.Engine) {
+  const body1 = Matter.Bodies.polygon(150, 200, 5, 30);
+  const constraint1 = Matter.Constraint.create({
+    pointA: { x: 150, y: 100 },
+    bodyB: body1,
+    pointB: { x: -10, y: -10 },
+  });
+  Matter.Composite.add(engine.world, [body1, constraint1]);
+
+  const body2 = Matter.Bodies.polygon(280, 100, 3, 30);
+  const constraint2 = Matter.Constraint.create({
+    pointA: { x: 280, y: 120 },
+    bodyB: body2,
+    pointB: { x: -10, y: -7 },
+    stiffness: 0.001,
+  });
+  Matter.Composite.add(engine.world, [body2, constraint2]);
+
+  const body3 = Matter.Bodies.polygon(400, 100, 4, 30);
+  const constraint3 = Matter.Constraint.create({
+    pointA: { x: 400, y: 120 },
+    bodyB: body3,
+    pointB: { x: -10, y: -10 },
+    stiffness: 0.001,
+    damping: 0.05,
+  });
+  Matter.Composite.add(engine.world, [body3, constraint3]);
+
+  const body4 = Matter.Bodies.rectangle(600, 200, 200, 20);
+  const ball = Matter.Bodies.circle(550, 150, 20);
+  const constraint4 = Matter.Constraint.create({
+    pointA: { x: 600, y: 200 },
+    bodyB: body4,
+    length: 0,
+  });
+  Matter.Composite.add(engine.world, [body4, ball, constraint4]);
+
+  const body5 = Matter.Bodies.rectangle(500, 400, 100, 20, {
+    collisionFilter: { group: -1 },
+  });
+  const ball2 = Matter.Bodies.circle(600, 400, 20, {
+    collisionFilter: { group: -1 },
+  });
+  const constraint5 = Matter.Constraint.create({
+    bodyA: body5,
+    bodyB: ball2,
+  });
+  Matter.Composite.add(engine.world, [body5, ball2, constraint5]);
+
+  const bodyA = Matter.Bodies.polygon(100, 400, 6, 20);
+  const bodyB = Matter.Bodies.polygon(200, 400, 1, 50);
+  const constraint6 = Matter.Constraint.create({
+    bodyA: bodyA,
+    pointA: { x: -10, y: -10 },
+    bodyB: bodyB,
+    pointB: { x: -10, y: -10 },
+  });
+  Matter.Composite.add(engine.world, [bodyA, bodyB, constraint6]);
+
+  const bodyA2 = Matter.Bodies.polygon(300, 400, 4, 20);
+  const bodyB2 = Matter.Bodies.polygon(400, 400, 3, 30);
+  const constraint7 = Matter.Constraint.create({
+    bodyA: bodyA2,
+    pointA: { x: -10, y: -10 },
+    bodyB: bodyB2,
+    pointB: { x: -10, y: -7 },
+    stiffness: 0.001,
+  });
+  Matter.Composite.add(engine.world, [bodyA2, bodyB2, constraint7]);
+
+  const bodyA3 = Matter.Bodies.polygon(500, 400, 6, 30);
+  const bodyB3 = Matter.Bodies.polygon(600, 400, 7, 60);
+  const constraint8 = Matter.Constraint.create({
+    bodyA: bodyA3,
+    pointA: { x: -10, y: -10 },
+    bodyB: bodyB3,
+    pointB: { x: -10, y: -10 },
+    stiffness: 0.001,
+    damping: 0.1,
+  });
+  Matter.Composite.add(engine.world, [bodyA3, bodyB3, constraint8]);
+}
+
+function addBodiesExample(engine: Matter.Engine) {
   function addBody(x: number, y: number): Matter.Body {
     const sides = Math.round(Matter.Common.random(1, 8));
     const chamfer: Matter.IChamfer | undefined =
