@@ -14,29 +14,67 @@ interface Variable {
 }
 export type Expression = Abstraction | Application | Variable;
 
-export function cata<T>(
+export function elim<T>(
   expr: Expression,
-  abstraction: (binder: string, body: T) => T,
-  application: (func: T, arg: T) => T,
+  abstraction: (binder: string, body: Expression) => T,
+  application: (func: Expression, arg: Expression) => T,
   variable: (name: string) => T
 ): T {
   switch (expr.type) {
     case "abstraction":
-      return abstraction(
-        expr.binder,
-        cata(expr.body, abstraction, application, variable)
-      );
+      return abstraction(expr.binder, expr.body);
     case "application":
-      return application(
-        cata(expr.func, abstraction, application, variable),
-        cata(expr.arg, abstraction, application, variable)
-      );
+      return application(expr.func, expr.arg);
     case "variable":
       return variable(expr.name);
     default:
       const _exhaustiveCheck: never = expr;
       return _exhaustiveCheck;
   }
+}
+
+export function cata<T>(
+  expr: Expression,
+  abstraction: (binder: string, body: T) => T,
+  application: (func: T, arg: T) => T,
+  variable: (name: string) => T
+): T {
+  return elim(
+    expr,
+    (binder, body) =>
+      abstraction(binder, cata(body, abstraction, application, variable)),
+    (func, arg) =>
+      application(
+        cata(func, abstraction, application, variable),
+        cata(arg, abstraction, application, variable)
+      ),
+    (name) => variable(name)
+  );
+}
+
+function depth(expr: Expression): number {
+  return cata(
+    expr,
+    (_binder, body) => 1 + body,
+    (func, arg) => Math.max(func, arg),
+    (_name) => 1
+  );
+}
+
+function width(expr: Expression): number {
+  return cata(
+    expr,
+    (_binder, body) => body,
+    (func, arg) => func + arg,
+    (_name) => 1
+  );
+}
+
+export function size(expr: Expression): { width: number; height: number } {
+  return {
+    width: width(expr),
+    height: depth(expr),
+  };
 }
 
 export const S: Expression = {

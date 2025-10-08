@@ -1,22 +1,26 @@
 import Matter from "matter-js";
 import * as Lambda from "./lambda";
 
-const yGap: number = 70;
+const unit = 60;
 
-const abstractionRadius = 40;
-const abstractionSides = 4;
-
-const applicationRadius = 50;
-const applicationSides = 3;
-
-const variableRadius = 30;
-const variableSides = 6;
-
-const wallDepth = 50;
+function addConstraint(
+  world: Matter.World,
+  options: Matter.IConstraintDefinition
+) {
+  Matter.Composite.add(
+    world,
+    Matter.Constraint.create({
+      ...options,
+      render: {
+        strokeStyle: "#ffffffff",
+        lineWidth: 2,
+      },
+    })
+  );
+}
 
 function initializeMatter() {
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
-
   const engine = Matter.Engine.create();
   const runner = Matter.Runner.create();
   Matter.Runner.run(runner, engine);
@@ -27,13 +31,76 @@ function initializeMatter() {
       width: windowWidth,
       height: windowHeight,
       showAngleIndicator: false,
+      wireframes: false,
+      background: "#b5b5b5ff",
+      hasBounds: true,
     },
   });
   Matter.Render.run(render);
-
   addMouseControl(engine, render);
-  //addWalls(engine.world);
+  addZoomPanControl(render);
   addExpressionExample(engine, Lambda.S);
+}
+
+function addZoomPanControl(render: Matter.Render) {
+  const zoomScaleFactor = 0.9;
+  let isPanning = false;
+  let lastMousePosition: Matter.Vector;
+  render.canvas.addEventListener(
+    "wheel",
+    function (event) {
+      event.preventDefault();
+      const scale = event.deltaY > 0 ? 1 / zoomScaleFactor : zoomScaleFactor;
+      const offset: Matter.Vector = {
+        x: event.offsetX,
+        y: event.offsetY,
+      };
+      render.bounds.min = Matter.Vector.add(
+        Matter.Vector.mult(Matter.Vector.sub(render.bounds.min, offset), scale),
+        offset
+      );
+      render.bounds.max = Matter.Vector.add(
+        Matter.Vector.mult(Matter.Vector.sub(render.bounds.max, offset), scale),
+        offset
+      );
+    },
+    { passive: false }
+  );
+  render.canvas.addEventListener("mousedown", function (event) {
+    if (event.button === 2) {
+      isPanning = true;
+      lastMousePosition = { x: event.clientX, y: event.clientY };
+    }
+  });
+  render.canvas.addEventListener("mouseup", function (event) {
+    if (event.button === 2) {
+      isPanning = false;
+    }
+  });
+  render.canvas.addEventListener("mousemove", function (event) {
+    if (!isPanning) return;
+    const client: Matter.Vector = { x: event.clientX, y: event.clientY };
+    const delta = Matter.Vector.sub(client, lastMousePosition);
+    const currentBoundsSize = Matter.Vector.sub(
+      render.bounds.max,
+      render.bounds.min
+    );
+    const currentWorldSize: Matter.Vector = {
+      x: render.options.width!,
+      y: render.options.height!,
+    };
+    const scale: Matter.Vector = {
+      x: currentBoundsSize.x / currentWorldSize.x,
+      y: currentBoundsSize.y / currentWorldSize.y,
+    };
+    const scaledDelta: Matter.Vector = {
+      x: delta.x * scale.x,
+      y: delta.y * scale.y,
+    };
+    render.bounds.min = Matter.Vector.sub(render.bounds.min, scaledDelta);
+    render.bounds.max = Matter.Vector.sub(render.bounds.max, scaledDelta);
+    lastMousePosition = client;
+  });
 }
 
 function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
@@ -42,6 +109,7 @@ function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
 }
 
 function addWalls(world: Matter.World) {
+  const wallDepth = 50;
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
   const wallProps: [number, number, number, number][] = [
     [0, windowHeight / 2, wallDepth, windowHeight],
@@ -61,111 +129,108 @@ function addExpressionExample(
 ) {
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
 
-  let height = abstractionRadius + yGap;
-  const body = Matter.Bodies.polygon(
-    windowWidth / 2,
-    height,
-    4,
-    abstractionRadius,
-    {
-      angle: (1 * Math.PI) / 4,
-    }
-  );
-  const constraint = Matter.Constraint.create({
+  let height = unit + unit;
+  const body = Matter.Bodies.polygon(windowWidth / 2, height, 4, unit, {
+    angle: (1 * Math.PI) / 4,
+    render: {
+      fillStyle: "#bc5353ff",
+    },
+  });
+  addConstraint(engine.world, {
     pointA: { x: windowWidth / 2, y: 0 },
     bodyB: body,
     pointB: {
       x: 0,
-      y: -abstractionRadius,
+      y: -unit,
     },
   });
-  height += abstractionRadius + yGap;
+  height += unit + unit;
 
-  height += applicationRadius;
-  const body2 = Matter.Bodies.polygon(
-    windowWidth / 2,
-    height,
-    3,
-    applicationRadius,
-    {
-      angle: (3 * Math.PI) / 6,
-    }
-  );
-  const constraint2 = Matter.Constraint.create({
+  height += unit;
+  const body2 = Matter.Bodies.polygon(windowWidth / 2, height, 3, unit, {
+    angle: (3 * Math.PI) / 6,
+    render: {
+      fillStyle: "#6ed360ff",
+    },
+  });
+  addConstraint(engine.world, {
     bodyA: body,
     pointA: {
       x: 0,
-      y: abstractionRadius,
+      y: unit,
     },
     bodyB: body2,
     pointB: {
       x: 0,
-      y: -applicationRadius,
+      y: -unit,
     },
   });
-  height += applicationRadius * Math.sin((5 * Math.PI) / 6) + yGap;
+  height += unit * Math.sin((5 * Math.PI) / 6) + unit;
 
-  height += variableRadius;
+  height += unit / 2;
   const body3 = Matter.Bodies.circle(
-    windowWidth / 2 + applicationRadius * Math.cos((1 * Math.PI) / 6),
+    windowWidth / 2 + unit * Math.cos((1 * Math.PI) / 6),
     height,
-    variableRadius
+    unit / 2,
+    {
+      render: {
+        fillStyle: "#555ad6ff",
+      },
+    }
   );
-  const constraint3 = Matter.Constraint.create({
+  addConstraint(engine.world, {
     bodyA: body2,
     pointA: {
-      x: applicationRadius * Math.cos((1 * Math.PI) / 6),
-      y: applicationRadius * Math.sin((5 * Math.PI) / 6),
+      x: unit * Math.cos((1 * Math.PI) / 6),
+      y: unit * Math.sin((5 * Math.PI) / 6),
     },
     bodyB: body3,
-    pointB: { x: 0, y: -variableRadius },
+    pointB: { x: 0, y: -unit / 2 },
   });
+
   const body4 = Matter.Bodies.circle(
-    windowWidth / 2 - applicationRadius * Math.cos((1 * Math.PI) / 6),
+    windowWidth / 2 - unit * Math.cos((1 * Math.PI) / 6),
     height,
-    variableRadius
+    unit / 2,
+    {
+      render: {
+        fillStyle: "#555ad6ff",
+      },
+    }
   );
-  const constraint4 = Matter.Constraint.create({
+
+  addConstraint(engine.world, {
     bodyA: body2,
     pointA: {
-      x: applicationRadius * Math.cos((5 * Math.PI) / 6),
-      y: applicationRadius * Math.sin((5 * Math.PI) / 6),
+      x: unit * Math.cos((5 * Math.PI) / 6),
+      y: unit * Math.sin((5 * Math.PI) / 6),
     },
     bodyB: body4,
-    pointB: { x: 0, y: -variableRadius },
+    pointB: { x: 0, y: -unit / 2 },
   });
 
-  Matter.Composite.add(engine.world, [
-    body,
-    constraint,
-    body2,
-    constraint2,
-    body3,
-    constraint3,
-    body4,
-    constraint4,
-  ]);
+  Matter.Composite.add(engine.world, [body, body2, body3, body4]);
 
-  setTimeout(() => {
-    const constraint = Matter.Constraint.create({
-      bodyA: body3,
-      pointA: {
-        x: 0,
-        y: +variableRadius,
-      },
-      bodyB: body4,
-      pointB: { x: 0, y: +variableRadius },
-    });
-    Matter.Composite.add(engine.world, [constraint]);
-    Matter.Composite.remove(engine.world, constraint4);
-  }, 5000);
+  // setTimeout(() => {
+  //   const constraint = Matter.Constraint.create({
+  //     bodyA: body3,
+  //     pointA: {
+  //       x: 0,
+  //       y: +unit / 2,
+  //     },
+  //     bodyB: body4,
+  //     pointB: { x: 0, y: +unit / 2 },
+  //   });
+  //   Matter.Composite.add(engine.world, [constraint]);
+  //   Matter.Composite.remove(engine.world, constraint4);
+  // }, 5000);
 
   const labels: Record<number, HTMLElement> = {};
   labels[body.id] = document.getElementById("label-A")!;
   labels[body2.id] = document.getElementById("label-B")!;
   labels[body3.id] = document.getElementById("label-C")!;
   labels[body4.id] = document.getElementById("label-D")!;
-  Matter.Events.on(engine, "beforeUpdate", function () {
+  Matter.Events.on(engine, "afterUpdate", function () {
     for (const bodyId in labels) {
       const body = Matter.Composite.get(
         engine.world,
