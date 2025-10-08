@@ -1,10 +1,16 @@
 import Matter from "matter-js";
 import * as Lambda from "./lambda";
 
-const yGap: number = 50;
+const yGap: number = 70;
+
 const abstractionRadius = 40;
-const applicationRadius = 100;
-const variableRadius = 60;
+const abstractionSides = 4;
+
+const applicationRadius = 50;
+const applicationSides = 3;
+
+const variableRadius = 30;
+const variableSides = 6;
 
 const wallDepth = 50;
 
@@ -20,13 +26,14 @@ function initializeMatter() {
     options: {
       width: windowWidth,
       height: windowHeight,
+      showAngleIndicator: false,
     },
   });
   Matter.Render.run(render);
 
   addMouseControl(engine, render);
   //addWalls(engine.world);
-  addExpressionExample(engine.world, Lambda.S);
+  addExpressionExample(engine, Lambda.S);
 }
 
 function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
@@ -49,7 +56,7 @@ function addWalls(world: Matter.World) {
 }
 
 function addExpressionExample(
-  world: Matter.World,
+  engine: Matter.Engine,
   expression: Lambda.Expression
 ) {
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
@@ -128,7 +135,7 @@ function addExpressionExample(
     pointB: { x: 0, y: -variableRadius },
   });
 
-  Matter.Composite.add(world, [
+  Matter.Composite.add(engine.world, [
     body,
     constraint,
     body2,
@@ -138,6 +145,43 @@ function addExpressionExample(
     body4,
     constraint4,
   ]);
+
+  setTimeout(() => {
+    const constraint = Matter.Constraint.create({
+      bodyA: body3,
+      pointA: {
+        x: 0,
+        y: +variableRadius,
+      },
+      bodyB: body4,
+      pointB: { x: 0, y: +variableRadius },
+    });
+    Matter.Composite.add(engine.world, [constraint]);
+    Matter.Composite.remove(engine.world, constraint4);
+  }, 5000);
+
+  const labels: Record<number, HTMLElement> = {};
+  labels[body.id] = document.getElementById("label-A")!;
+  labels[body2.id] = document.getElementById("label-B")!;
+  labels[body3.id] = document.getElementById("label-C")!;
+  labels[body4.id] = document.getElementById("label-D")!;
+  Matter.Events.on(engine, "beforeUpdate", function () {
+    for (const bodyId in labels) {
+      const body = Matter.Composite.get(
+        engine.world,
+        parseInt(bodyId),
+        "body"
+      ) as Matter.Body;
+      const labelElement = labels[bodyId];
+      if (body && labelElement) {
+        const x = body.position.x;
+        const y = body.position.y;
+        labelElement.style.left = `${x}px`;
+        labelElement.style.top = `${y}px`;
+        //labelElement.style.transform = `translate(-50%, -50%) rotate(${body.angle}rad)`;
+      }
+    }
+  });
 }
 
 function addConstraintsExample(engine: Matter.Engine) {
