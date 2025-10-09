@@ -63,10 +63,12 @@ function getOffset(render: Matter.Render): Matter.Vector {
   return render.bounds.min;
 }
 function getScale(render: Matter.Render): Matter.Vector {
-  return {
+  const scale = {
     x: (render.bounds.max.x - render.bounds.min.x) / render.options.width!,
     y: (render.bounds.max.y - render.bounds.min.y) / render.options.height!,
   };
+  console.log("scale", scale);
+  return scale;
 }
 function getDisplayPosition(position: Matter.Vector, render: Matter.Render) {
   const offset = getOffset(render);
@@ -83,34 +85,25 @@ function updateMouse(render: Matter.Render) {
 }
 
 function addZoomPanControl(render: Matter.Render) {
-  const zoomScaleFactor = 0.9;
   let isPanning = false;
   let lastMousePosition: Matter.Vector;
+  const zoomScaleFactor = 0.9;
   render.canvas.addEventListener(
     "wheel",
     function (event) {
       event.preventDefault();
       const zoomScale =
         event.deltaY > 0 ? 1 / zoomScaleFactor : zoomScaleFactor;
-      const eventOffset: Matter.Vector = {
-        x: event.offsetX,
-        y: event.offsetY,
-      };
-      render.bounds.min = Matter.Vector.add(
-        Matter.Vector.mult(
-          Matter.Vector.sub(render.bounds.min, eventOffset),
-          zoomScale
-        ),
-        eventOffset
-      );
-      render.bounds.max = Matter.Vector.add(
-        Matter.Vector.mult(
-          Matter.Vector.sub(render.bounds.max, eventOffset),
-          zoomScale
-        ),
-        eventOffset
-      );
-      updateMouse(render);
+      const currentWorldWidth = render.bounds.max.x - render.bounds.min.x;
+      const newWorldWidth = currentWorldWidth * zoomScale;
+      const newWorldHeight =
+        (newWorldWidth * render.options.height!) / render.options.width!;
+      const worldScaleFactor =
+        (currentWorldWidth / render.options.width!) * (1 - zoomScale);
+      render.bounds.min.x += event.offsetX * worldScaleFactor;
+      render.bounds.min.y += event.offsetY * worldScaleFactor;
+      render.bounds.max.x = render.bounds.min.x + newWorldWidth;
+      render.bounds.max.y = render.bounds.min.y + newWorldHeight;
     },
     { passive: false }
   );
