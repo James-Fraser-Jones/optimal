@@ -19,6 +19,14 @@ function addConstraint(
   );
 }
 
+function addLabel(body: Matter.Body, text: string) {
+  const label = document.createElement("div");
+  label.className = "label";
+  label.id = body.id.toString();
+  label.innerText = text;
+  document.body.appendChild(label);
+}
+
 function initializeMatter() {
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
   const engine = Matter.Engine.create();
@@ -39,7 +47,39 @@ function initializeMatter() {
   Matter.Render.run(render);
   addMouseControl(engine, render);
   addZoomPanControl(render);
+  addLabelUpdate(engine, render);
   addExpressionExample(engine, Lambda.S);
+}
+
+function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
+  render.mouse = Matter.Mouse.create(render.canvas);
+  Matter.Composite.add(
+    engine.world,
+    Matter.MouseConstraint.create(engine, { mouse: render.mouse })
+  );
+}
+
+function getOffset(render: Matter.Render): Matter.Vector {
+  return render.bounds.min;
+}
+function getScale(render: Matter.Render): Matter.Vector {
+  return {
+    x: (render.bounds.max.x - render.bounds.min.x) / render.options.width!,
+    y: (render.bounds.max.y - render.bounds.min.y) / render.options.height!,
+  };
+}
+function getDisplayPosition(position: Matter.Vector, render: Matter.Render) {
+  const offset = getOffset(render);
+  const scale = getScale(render);
+  return {
+    x: (position.x - offset.x) / scale.x,
+    y: (position.y - offset.y) / scale.y,
+  };
+}
+
+function updateMouse(render: Matter.Render) {
+  Matter.Mouse.setScale(render.mouse, getScale(render));
+  Matter.Mouse.setOffset(render.mouse, render.bounds.min);
 }
 
 function addZoomPanControl(render: Matter.Render) {
@@ -50,19 +90,27 @@ function addZoomPanControl(render: Matter.Render) {
     "wheel",
     function (event) {
       event.preventDefault();
-      const scale = event.deltaY > 0 ? 1 / zoomScaleFactor : zoomScaleFactor;
-      const offset: Matter.Vector = {
+      const zoomScale =
+        event.deltaY > 0 ? 1 / zoomScaleFactor : zoomScaleFactor;
+      const eventOffset: Matter.Vector = {
         x: event.offsetX,
         y: event.offsetY,
       };
       render.bounds.min = Matter.Vector.add(
-        Matter.Vector.mult(Matter.Vector.sub(render.bounds.min, offset), scale),
-        offset
+        Matter.Vector.mult(
+          Matter.Vector.sub(render.bounds.min, eventOffset),
+          zoomScale
+        ),
+        eventOffset
       );
       render.bounds.max = Matter.Vector.add(
-        Matter.Vector.mult(Matter.Vector.sub(render.bounds.max, offset), scale),
-        offset
+        Matter.Vector.mult(
+          Matter.Vector.sub(render.bounds.max, eventOffset),
+          zoomScale
+        ),
+        eventOffset
       );
+      updateMouse(render);
     },
     { passive: false }
   );
@@ -81,18 +129,7 @@ function addZoomPanControl(render: Matter.Render) {
     if (!isPanning) return;
     const client: Matter.Vector = { x: event.clientX, y: event.clientY };
     const delta = Matter.Vector.sub(client, lastMousePosition);
-    const currentBoundsSize = Matter.Vector.sub(
-      render.bounds.max,
-      render.bounds.min
-    );
-    const currentWorldSize: Matter.Vector = {
-      x: render.options.width!,
-      y: render.options.height!,
-    };
-    const scale: Matter.Vector = {
-      x: currentBoundsSize.x / currentWorldSize.x,
-      y: currentBoundsSize.y / currentWorldSize.y,
-    };
+    const scale = getScale(render);
     const scaledDelta: Matter.Vector = {
       x: delta.x * scale.x,
       y: delta.y * scale.y,
@@ -100,12 +137,8 @@ function addZoomPanControl(render: Matter.Render) {
     render.bounds.min = Matter.Vector.sub(render.bounds.min, scaledDelta);
     render.bounds.max = Matter.Vector.sub(render.bounds.max, scaledDelta);
     lastMousePosition = client;
+    updateMouse(render);
   });
-}
-
-function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
-  render.mouse = Matter.Mouse.create(render.canvas);
-  Matter.Composite.add(engine.world, Matter.MouseConstraint.create(engine));
 }
 
 function addWalls(world: Matter.World) {
@@ -225,27 +258,33 @@ function addExpressionExample(
   //   Matter.Composite.remove(engine.world, constraint4);
   // }, 5000);
 
-  const labels: Record<number, HTMLElement> = {};
-  labels[body.id] = document.getElementById("label-A")!;
-  labels[body2.id] = document.getElementById("label-B")!;
-  labels[body3.id] = document.getElementById("label-C")!;
-  labels[body4.id] = document.getElementById("label-D")!;
+  addLabel(body, "λx");
+  addLabel(body2, "@");
+  addLabel(body3, "x");
+  addLabel(body4, "x");
+}
+
+function addLabelUpdate(engine: Matter.Engine, render: Matter.Render) {
   Matter.Events.on(engine, "afterUpdate", function () {
-    for (const bodyId in labels) {
+    document.querySelectorAll<HTMLElement>(".label").forEach((label) => {
+      const id = Number(label.id);
       const body = Matter.Composite.get(
         engine.world,
-        parseInt(bodyId),
+        id,
         "body"
       ) as Matter.Body;
-      const labelElement = labels[bodyId];
-      if (body && labelElement) {
-        const x = body.position.x;
-        const y = body.position.y;
-        labelElement.style.left = `${x}px`;
-        labelElement.style.top = `${y}px`;
+      if (body) {
+        const position = body.position;
+        const displayPosition = getDisplayPosition(position, render);
+        const scale = getScale(render);
+        label.style.left = `${displayPosition.x}px`;
+        label.style.top = `${displayPosition.y}px`;
+        label.style.fontSize = `${16 / Math.max(scale.x, scale.y)}px`;
         //labelElement.style.transform = `translate(-50%, -50%) rotate(${body.angle}rad)`;
+      } else {
+        label.remove();
       }
-    }
+    });
   });
 }
 
