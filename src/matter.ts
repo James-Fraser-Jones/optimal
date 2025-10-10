@@ -24,12 +24,9 @@ function initializeMatter() {
   addZoomPanControl(render);
   addLabelUpdate(engine, render);
 
-  const s = Lambda.S;
-  console.log(s);
+  const s = Lambda.Y;
   const sizedS = Lambda.sizeExpression(s);
-  console.log(sizedS);
   const matteredS = matterExpression(sizedS);
-  console.log(matteredS);
   addMatteredExpression(engine, matteredS);
 }
 
@@ -61,7 +58,15 @@ function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
   render.mouse = Matter.Mouse.create(render.canvas);
   Matter.Composite.add(
     engine.world,
-    Matter.MouseConstraint.create(engine, { mouse: render.mouse })
+    Matter.MouseConstraint.create(engine, {
+      mouse: render.mouse,
+      constraint: {
+        render: {
+          strokeStyle: "#ffffffff",
+          lineWidth: 2,
+        },
+      },
+    })
   );
 }
 function addZoomPanControl(render: Matter.Render) {
@@ -150,9 +155,9 @@ function positionStyleToAngle(style: PositionStyle): number {
     case "body":
       return 1.5;
     case "func":
-      return 2;
+      return 2.5;
     case "arg":
-      return 1;
+      return 0.5;
   }
 }
 
@@ -323,7 +328,7 @@ function createConstraint(
 }
 function createLabel(body: Matter.Body, text: string): HTMLElement {
   const label = document.createElement("div");
-  label.className = "label red-hat-text-normal";
+  label.className = "label";
   label.id = body.id.toString();
   label.innerText = text;
   return label;

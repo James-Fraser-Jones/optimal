@@ -178,3 +178,44 @@ export const I: Expression = {
   body: { type: "variable", name: "x", metadata: undefined },
   metadata: undefined,
 };
+export const Y: Expression = {
+  type: "abstraction",
+  binder: "f",
+  body: {
+    type: "application",
+    func: {
+      type: "abstraction",
+      binder: "x",
+      body: {
+        type: "application",
+        func: { type: "variable", name: "f", metadata: undefined },
+        arg: {
+          type: "application",
+          func: { type: "variable", name: "x", metadata: undefined },
+          arg: { type: "variable", name: "x", metadata: undefined },
+          metadata: undefined,
+        },
+        metadata: undefined,
+      },
+      metadata: undefined,
+    },
+    arg: {
+      type: "abstraction",
+      binder: "x",
+      body: {
+        type: "application",
+        func: { type: "variable", name: "f", metadata: undefined },
+        arg: {
+          type: "application",
+          func: { type: "variable", name: "x", metadata: undefined },
+          arg: { type: "variable", name: "x", metadata: undefined },
+          metadata: undefined,
+        },
+        metadata: undefined,
+      },
+      metadata: undefined,
+    },
+    metadata: undefined,
+  },
+  metadata: undefined,
+};
