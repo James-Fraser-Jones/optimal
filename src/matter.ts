@@ -13,7 +13,7 @@ function initializeMatter() {
     options: {
       width: windowWidth,
       height: windowHeight,
-      showAngleIndicator: true,
+      showAngleIndicator: false,
       wireframes: false,
       background: "#b5b5b5ff",
       hasBounds: true,
@@ -23,7 +23,14 @@ function initializeMatter() {
   addMouseControl(engine, render);
   addZoomPanControl(render);
   addLabelUpdate(engine, render);
-  addExpression(engine, Lambda.S);
+
+  const s = Lambda.S;
+  console.log(s);
+  const sizedS = Lambda.sizeExpression(s);
+  console.log(sizedS);
+  const matteredS = matterExpression(sizedS);
+  console.log(matteredS);
+  addMatteredExpression(engine, matteredS);
 }
 
 //utils
@@ -130,118 +137,154 @@ function addLabelUpdate(engine: Matter.Engine, render: Matter.Render) {
   });
 }
 
-//primitives
-function addExpression(engine: Matter.Engine, expression: Lambda.Expression) {
-  const unit = 60;
-  let height = 0;
-
-  height += 2 * unit;
-  const body = Matter.Bodies.polygon(0, height, 4, unit, {
-    angle: (1 * Math.PI) / 4,
-    render: {
-      fillStyle: "#bc5353ff",
-    },
-  });
-  Matter.Composite.add(engine.world, body);
-  addLabel(body, "λx");
-  addConstraint(engine.world, {
-    pointA: { x: 0, y: 0 },
-    bodyB: body,
-    pointB: {
-      x: 0,
-      y: -unit,
-    },
-  });
-  height += 2 * unit;
-
-  height += unit;
-  const body2 = Matter.Bodies.polygon(0, height, 3, unit, {
-    angle: (3 * Math.PI) / 6,
-    render: {
-      fillStyle: "#6ed360ff",
-    },
-  });
-  Matter.Composite.add(engine.world, body2);
-  addLabel(body2, "@");
-  addConstraint(engine.world, {
-    bodyA: body,
-    pointA: {
-      x: 0,
-      y: unit,
-    },
-    bodyB: body2,
-    pointB: {
-      x: 0,
-      y: -unit,
-    },
-  });
-  height += (1 + Math.sin((5 * Math.PI) / 6)) * unit;
-
-  height += unit / 2;
-  const body3 = Matter.Bodies.circle(
-    0 + unit * Math.cos((1 * Math.PI) / 6),
-    height,
-    unit / 2,
-    {
-      render: {
-        fillStyle: "#555ad6ff",
-      },
-    }
-  );
-  Matter.Composite.add(engine.world, body3);
-  addLabel(body3, "x");
-  addConstraint(engine.world, {
-    bodyA: body2,
-    pointA: {
-      x: unit * Math.cos((1 * Math.PI) / 6),
-      y: unit * Math.sin((5 * Math.PI) / 6),
-    },
-    bodyB: body3,
-    pointB: { x: 0, y: -unit / 2 },
-  });
-  const body4 = Matter.Bodies.circle(
-    0 - unit * Math.cos((1 * Math.PI) / 6),
-    height,
-    unit / 2,
-    {
-      render: {
-        fillStyle: "#555ad6ff",
-      },
-    }
-  );
-  Matter.Composite.add(engine.world, body4);
-  addLabel(body4, "x");
-  addConstraint(engine.world, {
-    bodyA: body2,
-    pointA: {
-      x: unit * Math.cos((5 * Math.PI) / 6),
-      y: unit * Math.sin((5 * Math.PI) / 6),
-    },
-    bodyB: body4,
-    pointB: { x: 0, y: -unit / 2 },
-  });
+//mattered expressions
+interface MatterMetadata extends Lambda.SizeMetadata {
+  body: Matter.Body;
+  constraint: Matter.Constraint;
+  label: HTMLElement;
 }
-function addConstraint(
-  world: Matter.World,
-  options: Matter.IConstraintDefinition
+type MatteredExpression = Lambda.Expression<MatterMetadata>;
+function matterExpression(
+  expr: Lambda.SizedExpression,
+  topLeft: Matter.Vector = { x: 0, y: 0 }
+): MatteredExpression {
+  const radius = 40;
+  const mattered = expr as unknown as MatteredExpression;
+  Lambda.match(
+    expr,
+    (abs) => {
+      matterExpression(abs.body, { x: topLeft.x, y: topLeft.y + radius * 3 });
+      mattered.metadata.body = Matter.Bodies.circle(
+        topLeft.x + expr.metadata.root * radius * 2,
+        topLeft.y,
+        radius,
+        {
+          // angle: Math.PI / 4,
+          render: {
+            fillStyle: "#bc5353ff",
+          },
+        }
+      );
+      mattered.metadata.constraint = createConstraint({
+        // bodyA: body,
+        pointA: {
+          x: 0,
+          y: 0,
+        },
+        bodyB: mattered.metadata.body,
+        pointB: {
+          x: 0,
+          y: 0,
+        },
+      });
+      mattered.metadata.label = createLabel(
+        mattered.metadata.body,
+        `λ${abs.binder}`
+      );
+    },
+    (app) => {
+      matterExpression(app.func, { x: topLeft.x, y: topLeft.y + radius * 3 });
+      matterExpression(app.arg, {
+        x: topLeft.x + app.func.metadata.width * radius * 2,
+        y: topLeft.y + radius * 3,
+      });
+      mattered.metadata.body = Matter.Bodies.circle(
+        topLeft.x + expr.metadata.root * radius * 2,
+        topLeft.y,
+        radius,
+        {
+          render: {
+            fillStyle: "#6ed360ff",
+          },
+        }
+      );
+      mattered.metadata.constraint = createConstraint({
+        // bodyA: body,
+        pointA: {
+          x: 0,
+          y: 0,
+        },
+        bodyB: mattered.metadata.body,
+        pointB: {
+          x: 0,
+          y: 0,
+        },
+      });
+      mattered.metadata.label = createLabel(mattered.metadata.body, "@");
+    },
+    (v) => {
+      mattered.metadata.body = Matter.Bodies.circle(
+        topLeft.x + expr.metadata.root * radius * 2,
+        topLeft.y,
+        radius,
+        {
+          render: {
+            fillStyle: "#555ad6ff",
+          },
+        }
+      );
+      mattered.metadata.constraint = createConstraint({
+        // bodyA: body,
+        pointA: {
+          x: 0,
+          y: 0,
+        },
+        bodyB: mattered.metadata.body,
+        pointB: {
+          x: 0,
+          y: 0,
+        },
+      });
+      mattered.metadata.label = createLabel(
+        mattered.metadata.body,
+        `${v.name}`
+      );
+    }
+  );
+  return mattered;
+}
+
+//add primitives
+function addMatteredExpression(
+  engine: Matter.Engine,
+  expr: MatteredExpression
 ) {
-  Matter.Composite.add(
-    world,
-    Matter.Constraint.create({
-      ...options,
-      render: {
-        strokeStyle: "#ffffffff",
-        lineWidth: 2,
-      },
-    })
+  Matter.Composite.add(engine.world, [
+    expr.metadata.body,
+    expr.metadata.constraint,
+  ]);
+  document.body.appendChild(expr.metadata.label);
+  Lambda.match(
+    expr,
+    (abs) => {
+      addMatteredExpression(engine, abs.body);
+    },
+    (app) => {
+      addMatteredExpression(engine, app.func);
+      addMatteredExpression(engine, app.arg);
+    },
+    (_) => {}
   );
 }
-function addLabel(body: Matter.Body, text: string) {
+
+//create primitives
+function createConstraint(
+  options: Matter.IConstraintDefinition
+): Matter.Constraint {
+  return Matter.Constraint.create({
+    ...options,
+    render: {
+      strokeStyle: "#ffffffff",
+      lineWidth: 2,
+    },
+  });
+}
+function createLabel(body: Matter.Body, text: string): HTMLElement {
   const label = document.createElement("div");
   label.className = "label";
   label.id = body.id.toString();
   label.innerText = text;
-  document.body.appendChild(label);
+  return label;
 }
 
 export default initializeMatter;
