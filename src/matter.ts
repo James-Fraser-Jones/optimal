@@ -15,7 +15,7 @@ function initializeMatter() {
       height: windowHeight,
       showAngleIndicator: false,
       wireframes: false,
-      background: "#b5b5b5ff",
+      background: "#afabbaff",
       hasBounds: true,
     },
   });
@@ -128,13 +128,32 @@ function addLabelUpdate(engine: Matter.Engine, render: Matter.Render) {
         const scale = getScale(render);
         label.style.left = `${displayPosition.x}px`;
         label.style.top = `${displayPosition.y}px`;
-        label.style.fontSize = `${16 / Math.max(scale.x, scale.y)}px`;
+        label.style.fontSize = `${radius / Math.max(scale.x, scale.y)}px`;
         //labelElement.style.transform = `translate(-50%, -50%) rotate(${body.angle}rad)`;
       } else {
         label.remove();
       }
     });
   });
+}
+
+function getCircleVector(angle: number, radius: number): Matter.Vector {
+  return {
+    x: Math.cos(angle * 2 * Math.PI) * radius,
+    y: Math.sin(angle * 2 * Math.PI) * radius,
+  };
+}
+
+type PositionStyle = "body" | "func" | "arg";
+function positionStyleToAngle(style: PositionStyle): number {
+  switch (style) {
+    case "body":
+      return 1.5;
+    case "func":
+      return 2;
+    case "arg":
+      return 1;
+  }
 }
 
 //mattered expressions
@@ -144,16 +163,17 @@ interface MatterMetadata extends Lambda.SizeMetadata {
   label: HTMLElement;
 }
 type MatteredExpression = Lambda.Expression<MatterMetadata>;
+const radius = 40;
 function matterExpression(
   expr: Lambda.SizedExpression,
-  topLeft: Matter.Vector = { x: 0, y: 0 }
+  topLeft: Matter.Vector = { x: 0, y: radius * 2 },
+  parent: MatteredExpression | null = null,
+  position: "body" | "func" | "arg" | undefined = undefined
 ): MatteredExpression {
-  const radius = 40;
   const mattered = expr as unknown as MatteredExpression;
   Lambda.match(
     expr,
     (abs) => {
-      matterExpression(abs.body, { x: topLeft.x, y: topLeft.y + radius * 3 });
       mattered.metadata.body = Matter.Bodies.circle(
         topLeft.x + expr.metadata.root * radius * 2,
         topLeft.y,
@@ -166,28 +186,31 @@ function matterExpression(
         }
       );
       mattered.metadata.constraint = createConstraint({
-        // bodyA: body,
-        pointA: {
-          x: 0,
-          y: 0,
-        },
+        bodyA: parent?.metadata?.body,
+        pointA: parent
+          ? getCircleVector(positionStyleToAngle(position!) / 6, radius)
+          : {
+              x: topLeft.x + expr.metadata.root * radius * 2,
+              y: 0,
+            },
         bodyB: mattered.metadata.body,
         pointB: {
           x: 0,
-          y: 0,
+          y: -radius,
         },
       });
       mattered.metadata.label = createLabel(
         mattered.metadata.body,
         `λ${abs.binder}`
       );
+      matterExpression(
+        abs.body,
+        { x: topLeft.x, y: topLeft.y + radius * 3 },
+        mattered,
+        "body"
+      );
     },
     (app) => {
-      matterExpression(app.func, { x: topLeft.x, y: topLeft.y + radius * 3 });
-      matterExpression(app.arg, {
-        x: topLeft.x + app.func.metadata.width * radius * 2,
-        y: topLeft.y + radius * 3,
-      });
       mattered.metadata.body = Matter.Bodies.circle(
         topLeft.x + expr.metadata.root * radius * 2,
         topLeft.y,
@@ -199,18 +222,35 @@ function matterExpression(
         }
       );
       mattered.metadata.constraint = createConstraint({
-        // bodyA: body,
-        pointA: {
-          x: 0,
-          y: 0,
-        },
+        bodyA: parent?.metadata?.body,
+        pointA: parent
+          ? getCircleVector(positionStyleToAngle(position!) / 6, radius)
+          : {
+              x: topLeft.x + expr.metadata.root * radius * 2,
+              y: 0,
+            },
         bodyB: mattered.metadata.body,
         pointB: {
           x: 0,
-          y: 0,
+          y: -radius,
         },
       });
       mattered.metadata.label = createLabel(mattered.metadata.body, "@");
+      matterExpression(
+        app.func,
+        { x: topLeft.x, y: topLeft.y + radius * 3 },
+        mattered,
+        "func"
+      );
+      matterExpression(
+        app.arg,
+        {
+          x: topLeft.x + app.func.metadata.width * radius * 2,
+          y: topLeft.y + radius * 3,
+        },
+        mattered,
+        "arg"
+      );
     },
     (v) => {
       mattered.metadata.body = Matter.Bodies.circle(
@@ -224,15 +264,17 @@ function matterExpression(
         }
       );
       mattered.metadata.constraint = createConstraint({
-        // bodyA: body,
-        pointA: {
-          x: 0,
-          y: 0,
-        },
+        bodyA: parent?.metadata?.body,
+        pointA: parent
+          ? getCircleVector(positionStyleToAngle(position!) / 6, radius)
+          : {
+              x: topLeft.x + expr.metadata.root * radius * 2,
+              y: 0,
+            },
         bodyB: mattered.metadata.body,
         pointB: {
           x: 0,
-          y: 0,
+          y: -radius,
         },
       });
       mattered.metadata.label = createLabel(
@@ -281,7 +323,7 @@ function createConstraint(
 }
 function createLabel(body: Matter.Body, text: string): HTMLElement {
   const label = document.createElement("div");
-  label.className = "label";
+  label.className = "label red-hat-text-normal";
   label.id = body.id.toString();
   label.innerText = text;
   return label;
