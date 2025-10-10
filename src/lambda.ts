@@ -14,67 +14,78 @@ interface Variable {
 }
 export type Expression = Abstraction | Application | Variable;
 
-export function elim<T>(
+interface ExpressionSize {
+  width: number;
+  height: number;
+  root: number;
+}
+export type SizedExpression = Expression & ExpressionSize;
+
+function match<T>(
   expr: Expression,
-  abstraction: (binder: string, body: Expression) => T,
-  application: (func: Expression, arg: Expression) => T,
-  variable: (name: string) => T
+  caseAbs: (abs: Abstraction) => T,
+  caseApp: (app: Application) => T,
+  caseVar: (v: Variable) => T
 ): T {
   switch (expr.type) {
     case "abstraction":
-      return abstraction(expr.binder, expr.body);
+      return caseAbs(expr);
     case "application":
-      return application(expr.func, expr.arg);
+      return caseApp(expr);
     case "variable":
-      return variable(expr.name);
+      return caseVar(expr);
     default:
       const _exhaustiveCheck: never = expr;
       return _exhaustiveCheck;
   }
 }
 
-export function cata<T>(
+function cata<T>(
   expr: Expression,
-  abstraction: (binder: string, body: T) => T,
-  application: (func: T, arg: T) => T,
-  variable: (name: string) => T
+  caseAbs: (binder: string, body: T) => T,
+  caseApp: (func: T, arg: T) => T,
+  caseVar: (name: string) => T
 ): T {
-  return elim(
+  return match(
     expr,
-    (binder, body) =>
-      abstraction(binder, cata(body, abstraction, application, variable)),
-    (func, arg) =>
-      application(
-        cata(func, abstraction, application, variable),
-        cata(arg, abstraction, application, variable)
+    (abs) => caseAbs(abs.binder, cata(abs.body, caseAbs, caseApp, caseVar)),
+    (app) =>
+      caseApp(
+        cata(app.func, caseAbs, caseApp, caseVar),
+        cata(app.arg, caseAbs, caseApp, caseVar)
       ),
-    (name) => variable(name)
+    (v) => caseVar(v.name)
   );
 }
 
-function depth(expr: Expression): number {
-  return cata(
+export function sizeFast(expr: Expression): SizedExpression {
+  return match(
     expr,
-    (_binder, body) => 1 + body,
-    (func, arg) => Math.max(func, arg),
-    (_name) => 1
+    (abs) => {
+      const body = sizeFast(abs.body);
+      Object.assign(abs, {
+        body,
+        width: body.width,
+        height: 1 + body.height,
+        root: body.root,
+      });
+      return abs as SizedExpression;
+    },
+    (app) => {
+      const func: SizedExpression = sizeFast(app.func);
+      const arg: SizedExpression = sizeFast(app.arg);
+      Object.assign(app, {
+        width: func.width + arg.width,
+        height: 1 + Math.max(func.height, arg.height),
+        root: (func.root + (func.width + arg.root)) / 2,
+      });
+      return app as SizedExpression;
+    },
+    (v) => {
+      Object.assign(v, { width: 1, height: 1, root: 0 });
+      return v as SizedExpression;
+    }
   );
-}
-
-function width(expr: Expression): number {
-  return cata(
-    expr,
-    (_binder, body) => body,
-    (func, arg) => func + arg,
-    (_name) => 1
-  );
-}
-
-export function size(expr: Expression): { width: number; height: number } {
-  return {
-    width: width(expr),
-    height: depth(expr),
-  };
 }
 
 export const S: Expression = {
