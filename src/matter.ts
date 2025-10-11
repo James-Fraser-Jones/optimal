@@ -1,6 +1,12 @@
 import Matter from "matter-js";
 import * as Lambda from "./lambda";
 
+const bgColor = "#032B43";
+const absColor = "#D00000";
+const appColor = "#136F63";
+const varColor = "#FFBA08";
+const constraintColor = "#FFFFFF";
+
 //main
 function initializeMatter() {
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
@@ -15,7 +21,7 @@ function initializeMatter() {
       height: windowHeight,
       showAngleIndicator: false,
       wireframes: false,
-      background: "#afabbaff",
+      background: bgColor,
       hasBounds: true,
     },
   });
@@ -62,7 +68,7 @@ function addMouseControl(engine: Matter.Engine, render: Matter.Render) {
       mouse: render.mouse,
       constraint: {
         render: {
-          strokeStyle: "#ffffffff",
+          strokeStyle: constraintColor,
           lineWidth: 2,
         },
       },
@@ -186,7 +192,7 @@ function matterExpression(
         {
           // angle: Math.PI / 4,
           render: {
-            fillStyle: "#bc5353ff",
+            fillStyle: absColor,
           },
         }
       );
@@ -222,7 +228,7 @@ function matterExpression(
         radius,
         {
           render: {
-            fillStyle: "#6ed360ff",
+            fillStyle: appColor,
           },
         }
       );
@@ -264,7 +270,7 @@ function matterExpression(
         radius,
         {
           render: {
-            fillStyle: "#555ad6ff",
+            fillStyle: varColor,
           },
         }
       );
@@ -321,7 +327,7 @@ function createConstraint(
   return Matter.Constraint.create({
     ...options,
     render: {
-      strokeStyle: "#ffffffff",
+      strokeStyle: constraintColor,
       lineWidth: 2,
     },
   });
