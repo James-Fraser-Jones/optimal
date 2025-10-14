@@ -1,123 +1,74 @@
-import { type Token } from "typescript-parsec";
-import {
-  buildLexer,
-  expectEOF,
-  expectSingleResult,
-  rule,
-} from "typescript-parsec";
-import { alt, apply, kmid, lrec_sc, seq, str, tok } from "typescript-parsec";
+import * as Lambda from "./lambda";
 
-const TokenKind = {
-  Number: "Number",
-  Add: "Add",
-  Sub: "Sub",
-  Mul: "Mul",
-  Div: "Div",
-  LParen: "LParen",
-  RParen: "RParen",
-  Space: "Space",
-} as const;
+type Parser<T> = (input: string) => [T, string] | null;
 
-type TokenKindObject = typeof TokenKind;
-type TokenKind = TokenKindObject[keyof TokenKindObject];
+const token: (re: RegExp) => Parser<string> = (re) => (input: string) => {
+  const match = re.exec(input);
+  return match && match.index === 0
+    ? [match[0], input.slice(match[0].length)]
+    : null;
+};
 
-const lexer = buildLexer([
-  [true, /^\d+(\.\d+)?/g, TokenKind.Number],
-  [true, /^\+/g, TokenKind.Add],
-  [true, /^\-/g, TokenKind.Sub],
-  [true, /^\*/g, TokenKind.Mul],
-  [true, /^\//g, TokenKind.Div],
-  [true, /^\(/g, TokenKind.LParen],
-  [true, /^\)/g, TokenKind.RParen],
-  [false, /^\s+/g, TokenKind.Space],
-]);
+const failure: Parser<any> = (_) => null;
+const alt: <T>(...parsers: Parser<T>[]) => Parser<T> =
+  (...parsers) =>
+  (input) => {
+    for (const parser of parsers) {
+      const res = parser(input);
+      if (res) return res;
+    }
+    return null;
+  };
 
-function applyNumber(value: Token<"Number">): number {
-  return +value.text;
+const success: <T>(value: T) => Parser<T> = (value) => (input) =>
+  [value, input];
+const seq: <A, B>(pf: Parser<(a: A) => B>, pa: Parser<A>) => Parser<B> =
+  (pf, pa) => (input) => {
+    const resF = pf(input);
+    if (!resF) return null;
+    const [f, restF] = resF;
+    const resA = pa(restF);
+    if (!resA) return null;
+    const [a, restA] = resA;
+    return [f(a), restA];
+  };
+
+const map: <A, B>(fn: (a: A) => B, parser: Parser<A>) => Parser<B> = (
+  fn,
+  parser
+) => seq(success(fn), parser);
+const seql: <A, B>(pa: Parser<A>, pb: Parser<B>) => Parser<A> = (pa, pb) =>
+  seq(
+    map((a) => (_) => a, pa),
+    pb
+  );
+const seqr: <A, B>(pa: Parser<A>, pb: Parser<B>) => Parser<B> = (pa, pb) =>
+  seq(
+    map((_) => (b) => b, pa),
+    pb
+  );
+
+const complete: <T>(parser: Parser<T>) => Parser<T> = (parser) => (input) => {
+  const res = parser(input);
+  if (!res) return null;
+  const [value, rest] = res;
+  return rest.length === 0 ? [value, rest] : null;
+};
+
+function runParser<T>(parser: Parser<T>, input: string): T | null {
+  return parser(input)?.[0] ?? null;
 }
 
-function applyUnary(value: [Token<TokenKind>, number]): number {
-  switch (value[0].text) {
-    case "+":
-      return +value[1];
-    case "-":
-      return -value[1];
-    default:
-      throw new Error(`Unknown unary operator: ${value[0].text}`);
-  }
-}
+const any = token(/^.+/);
+const whitespace = token(/^\s+|/);
+const identifier = token(/^[a-z_][a-z_A-Z0-9]*/);
+const lambda = token(/^λ|\\/);
+const dot = token(/^\.|->/);
+const lparen = token(/^\(/);
+const rparen = token(/^\)/);
 
-function applyBinary(
-  first: number,
-  second: [Token<TokenKind>, number]
-): number {
-  switch (second[0].text) {
-    case "+":
-      return first + second[1];
-    case "-":
-      return first - second[1];
-    case "*":
-      return first * second[1];
-    case "/":
-      return first / second[1];
-    default:
-      throw new Error(`Unknown binary operator: ${second[0].text}`);
-  }
-}
+const variable: Parser<Lambda.Variable> = map(Lambda.variable, identifier);
 
-const TERM = rule<TokenKind, number>();
-const FACTOR = rule<TokenKind, number>();
-const EXP = rule<TokenKind, number>();
-
-/*
-TERM
-  = NUMBER
-  = ('+' | '-') TERM
-  = '(' EXP ')'
-*/
-TERM.setPattern(
-  alt(
-    apply(tok(TokenKind.Number), applyNumber),
-    apply(seq(alt(str("+"), str("-")), TERM), applyUnary),
-    kmid(str("("), EXP, str(")"))
-  )
-);
-
-/*
-FACTOR
-  = TERM
-  = FACTOR ('*' | '/') TERM
-*/
-FACTOR.setPattern(
-  lrec_sc(TERM, seq(alt(str("*"), str("/")), TERM), applyBinary)
-);
-
-/*
-EXP
-  = FACTOR
-  = EXP ('+' | '-') FACTOR
-*/
-EXP.setPattern(
-  lrec_sc(FACTOR, seq(alt(str("+"), str("-")), FACTOR), applyBinary)
-);
-
-function evaluate(expr: string): number {
-  return expectSingleResult(expectEOF(EXP.parse(lexer.parse(expr))));
-}
-
-function assert(condition: any, msg?: string): asserts condition {
-  if (!condition) {
-    throw new Error(msg ?? "Assertion failed");
-  }
-}
-
-assert(evaluate("1") === 1);
-assert(evaluate("+1.5") === 1.5);
-assert(evaluate("-0.5") === -0.5);
-assert(evaluate("1 + 2") === 3);
-assert(evaluate("1 - 2") === -1);
-assert(evaluate("1 * 2") === 2);
-assert(evaluate("1 / 2") === 0.5);
-assert(evaluate("1 + 2 * 3 + 4") === 11);
-assert(evaluate("(1 + 2) * (3 + 4)") === 21);
-assert(evaluate("1.2--3.4") === 4.6);
+const example = "      (λx. (λy. (x y))) (λz. z)";
+console.log(any(example));
+console.log(seqr(whitespace, any)(example));

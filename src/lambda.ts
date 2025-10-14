@@ -1,21 +1,45 @@
 //lambda expressions
-interface Abstraction<T> {
+export interface Abstraction<T = undefined> {
   type: "abstraction";
   binder: string;
   body: Expression<T>;
   metadata: T;
 }
-interface Application<T> {
+export const abstraction: (
+  binder: string
+) => (body: Expression) => Abstraction = (binder) => (body) => ({
+  type: "abstraction",
+  binder,
+  body,
+  metadata: undefined,
+});
+
+export interface Application<T = undefined> {
   type: "application";
   func: Expression<T>;
   arg: Expression<T>;
   metadata: T;
 }
-interface Variable<T> {
+export const application: (
+  func: Expression
+) => (arg: Expression) => Application = (func) => (arg) => ({
+  type: "application",
+  func,
+  arg,
+  metadata: undefined,
+});
+
+export interface Variable<T = undefined> {
   type: "variable";
   name: string;
   metadata: T;
 }
+export const variable: (name: string) => Variable = (name) => ({
+  type: "variable",
+  name,
+  metadata: undefined,
+});
+
 export type Expression<T = undefined> =
   | Abstraction<T>
   | Application<T>
