@@ -1,5 +1,6 @@
 import Matter from "matter-js";
 import * as Lambda from "./lambda";
+import * as Parser from "./parser";
 
 const bgColor = "#032B43";
 const absColor = "#D00000";
