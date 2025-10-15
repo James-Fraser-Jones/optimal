@@ -1,6 +1,6 @@
 import Matter from "matter-js";
 import * as Lambda from "./lambda";
-import * as Parser from "./parser";
+import { parseExpression } from "./parser";
 
 const bgColor = "#032B43";
 const absColor = "#D00000";
@@ -8,13 +8,16 @@ const appColor = "#136F63";
 const varColor = "#FFBA08";
 const constraintColor = "#FFFFFF";
 
+let engine: Matter.Engine;
+let render: Matter.Render;
+let runner: Matter.Runner;
+
 //main
-function initializeMatter() {
+export function initializeMatter() {
   const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
-  const engine = Matter.Engine.create();
-  const runner = Matter.Runner.create();
-  Matter.Runner.run(runner, engine);
-  const render = Matter.Render.create({
+  engine = Matter.Engine.create();
+  runner = Matter.Runner.create();
+  render = Matter.Render.create({
     element: document.body,
     engine,
     options: {
@@ -26,18 +29,20 @@ function initializeMatter() {
       hasBounds: true,
     },
   });
+  Matter.Runner.run(runner, engine);
   Matter.Render.run(render);
-  addMouseControl(engine, render);
   addZoomPanControl(render);
   addLabelUpdate(engine, render);
-
-  const s = Lambda.Y;
-  const sizedS = Lambda.sizeExpression(s);
-  const matteredS = matterExpression(sizedS);
-  addMatteredExpression(engine, matteredS);
 }
 
 //utils
+function resetBounds(render: Matter.Render) {
+  render.bounds = {
+    min: { x: 0, y: 0 },
+    max: { x: window.innerWidth, y: window.innerHeight },
+  };
+  updateMouse(render);
+}
 function getScale(render: Matter.Render): Matter.Vector {
   return {
     x: (render.bounds.max.x - render.bounds.min.x) / render.options.width!,
@@ -298,6 +303,17 @@ function matterExpression(
   return mattered;
 }
 
+//add utils
+export function addExpression(input: string) {
+  Matter.Composite.clear(engine.world, true, true);
+  addMouseControl(engine, render);
+  resetBounds(render);
+  const expr = parseExpression(input);
+  const sized = Lambda.sizeExpression(expr);
+  const mattered = matterExpression(sized);
+  addMatteredExpression(engine, mattered);
+}
+
 //add primitives
 function addMatteredExpression(
   engine: Matter.Engine,
@@ -340,5 +356,3 @@ function createLabel(body: Matter.Body, text: string): HTMLElement {
   label.innerText = text;
   return label;
 }
-
-export default initializeMatter;
