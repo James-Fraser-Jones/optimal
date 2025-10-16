@@ -3,9 +3,11 @@ import * as Lambda from "./lambda";
 //=== utils ===//
 
 const cons: <T>(x: T) => (xs: T[]) => T[] = (x) => (xs) => [x, ...xs];
+
 const foldl: <T>(op: (acc: T) => (curr: T) => T) => (list: T[]) => T =
   (op) => (list) =>
     list.reduce((acc, curr) => op(acc)(curr));
+
 const concat: (arr: string[]) => string = (arr) => arr.join("");
 
 //=== parser type and runner ===//
@@ -32,6 +34,17 @@ const runParser: <T, U>(parser: Parser<T, U>, input: U[]) => T = (
 
 //=== fundamental parser combinators ===//
 
+const failure: (message: string) => Parser<any, any> = (message) => () => ({
+  error: true,
+  message: `FAILURE: ${message}`,
+});
+
+const success: <T, U>(value: T) => Parser<T, U> = (value) => (input) => ({
+  error: false,
+  value,
+  remaining: input,
+});
+
 function satisfy<T extends U, U>(cond: (b: U) => b is T): Parser<T, U>;
 function satisfy<T>(cond: (b: T) => boolean): Parser<T, T>;
 function satisfy<T>(cond: (b: T) => boolean): Parser<T, T> {
@@ -57,10 +70,25 @@ function satisfy<T>(cond: (b: T) => boolean): Parser<T, T> {
   };
 }
 
-const failure: (message: string) => Parser<any, any> = (message) => () => ({
-  error: true,
-  message: `FAILURE: ${message}`,
-});
+const seq: <A, B, U>(
+  pf: Parser<(a: A) => B, U>,
+  pa: Parser<A, U>
+) => Parser<B, U> = (pf, pa) => (input) => {
+  const f = pf(input);
+  if (f.error)
+    return {
+      error: true,
+      message: `SEQ: Failed to parse function\n  - ${f.message}`,
+    };
+  const a = pa(f.remaining);
+  if (a.error)
+    return {
+      error: true,
+      message: `SEQ: Failed to parse argument\n  - ${a.message}`,
+    };
+  return { error: false, value: f.value(a.value), remaining: a.remaining };
+};
+
 const alt: <T, U>(...parsers: Parser<T, U>[]) => Parser<T, U> =
   (...parsers) =>
   (input) => {
@@ -81,29 +109,18 @@ const alt: <T, U>(...parsers: Parser<T, U>[]) => Parser<T, U> =
     };
   };
 
-const success: <T, U>(value: T) => Parser<T, U> = (value) => (input) => ({
-  error: false,
-  value,
-  remaining: input,
-});
-const seq: <A, B, U>(
-  pf: Parser<(a: A) => B, U>,
-  pa: Parser<A, U>
-) => Parser<B, U> = (pf, pa) => (input) => {
-  const f = pf(input);
-  if (f.error)
-    return {
-      error: true,
-      message: `SEQ: Failed to parse function\n  - ${f.message}`,
-    };
-  const a = pa(f.remaining);
-  if (a.error)
-    return {
-      error: true,
-      message: `SEQ: Failed to parse argument\n  - ${a.message}`,
-    };
-  return { error: false, value: f.value(a.value), remaining: a.remaining };
-};
+const complete: <T, U>(parser: Parser<T, U>) => Parser<T, U> =
+  (parser) => (input) => {
+    const result = parser(input);
+    if (result.error) return result;
+    if (result.remaining.length > 0) {
+      return {
+        error: true,
+        message: `COMPLETE: Parser did not consume entire input\n  - Remaining: ${result.remaining}`,
+      };
+    }
+    return result;
+  };
 
 const lazy: <T, U>(thunk: () => Parser<T, U>) => Parser<T, U> =
   (thunk) => (input) =>
@@ -156,14 +173,19 @@ const chainl1: <T, U>(
 //=== lambda calculus tokenization ===//
 
 const lambda = char("λ");
+
 const dot = char(".");
+
 const lparen = char("(");
+
 const rparen = char(")");
 
 const identifierHead = alt(charRange("a", "z"), char("_"));
+
 const identifierTail = many(
   alt(charRange("a", "z"), char("_"), charRange("A", "Z"), charRange("0", "9"))
 );
+
 const identifier = map(concat, seq(map(cons, identifierHead), identifierTail));
 
 const whitespace = map(
@@ -177,22 +199,28 @@ interface IdentifierToken {
   kind: "identifier";
   identifier: string;
 }
+
 interface LambdaToken {
   kind: "lambda";
 }
+
 interface DotToken {
   kind: "dot";
 }
+
 interface LParenToken {
   kind: "lparen";
 }
+
 interface RParenToken {
   kind: "rparen";
 }
+
 interface WhitespaceToken {
   kind: "whitespace";
   whitespace: string;
 }
+
 type ExpressionToken =
   | IdentifierToken
   | LambdaToken
@@ -215,15 +243,19 @@ const tokens: Parser<ExpressionToken[], string> = many(
 const identifierToken: Parser<IdentifierToken, ExpressionToken> = satisfy(
   (t) => t.kind === "identifier"
 );
+
 const lambdaToken: Parser<LambdaToken, ExpressionToken> = satisfy(
   (t) => t.kind === "lambda"
 );
+
 const dotToken: Parser<DotToken, ExpressionToken> = satisfy(
   (t) => t.kind === "dot"
 );
+
 const lparenToken: Parser<LParenToken, ExpressionToken> = satisfy(
   (t) => t.kind === "lparen"
 );
+
 const rparenToken: Parser<RParenToken, ExpressionToken> = satisfy(
   (t) => t.kind === "rparen"
 );
@@ -233,10 +265,12 @@ const rparenToken: Parser<RParenToken, ExpressionToken> = satisfy(
 const expression: Parser<Lambda.Expression, ExpressionToken> = lazy(() =>
   alt(application, term)
 );
+
 const variable: Parser<Lambda.Expression, ExpressionToken> = map(
   Lambda.variable,
   map((t: IdentifierToken) => t.identifier, identifierToken)
 );
+
 const abstraction: Parser<Lambda.Expression, ExpressionToken> = seq(
   map(
     Lambda.abstraction,
@@ -247,24 +281,30 @@ const abstraction: Parser<Lambda.Expression, ExpressionToken> = seq(
   ),
   expression
 );
+
 const parens: Parser<Lambda.Expression, ExpressionToken> = seqr(
   lparenToken,
   seql(expression, rparenToken)
 );
+
 const term: Parser<Lambda.Expression, ExpressionToken> = alt(
   parens,
   abstraction,
   variable
 );
+
 const application: Parser<Lambda.Expression, ExpressionToken> = chainl1(
   term,
   success(Lambda.application)
 );
+
+const topExpression: Parser<Lambda.Expression, ExpressionToken> =
+  complete(expression);
 
 //=== lambda parsing function export ===//
 
 export function parseExpression(input: string): Lambda.Expression {
   const tokensList = runParser(tokens, [...input]);
   const filteredTokens = tokensList.filter((t) => t.kind !== "whitespace");
-  return runParser(expression, filteredTokens);
+  return runParser(topExpression, filteredTokens);
 }
