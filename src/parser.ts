@@ -159,23 +159,29 @@ const lambda = char("λ");
 const dot = char(".");
 const lparen = char("(");
 const rparen = char(")");
+
 const identifierHead = alt(charRange("a", "z"), char("_"));
 const identifierTail = many(
   alt(charRange("a", "z"), char("_"), charRange("A", "Z"), charRange("0", "9"))
 );
 const identifier = map(join, seq(map(unshift, identifierHead), identifierTail));
-const binder = seql(seqr(lambda, identifier), dot);
-const whitespace = many1(
-  alt(char(" "), char("\n"), char("\t"), char("\r"), char("\v"), char("\f"))
+
+const whitespace = map(
+  join,
+  many1(
+    alt(char(" "), char("\n"), char("\t"), char("\r"), char("\v"), char("\f"))
+  )
 );
 
-interface VariableToken {
-  kind: "variable";
+interface IdentifierToken {
+  kind: "identifier";
   identifier: string;
 }
-interface BinderToken {
-  kind: "binder";
-  identifier: string;
+interface LambdaToken {
+  kind: "lambda";
+}
+interface DotToken {
+  kind: "dot";
 }
 interface LParenToken {
   kind: "lparen";
@@ -185,63 +191,72 @@ interface RParenToken {
 }
 interface WhitespaceToken {
   kind: "whitespace";
+  whitespace: string;
 }
-type LambdaToken =
-  | VariableToken
-  | BinderToken
+type ExpressionToken =
+  | IdentifierToken
+  | LambdaToken
+  | DotToken
   | LParenToken
   | RParenToken
   | WhitespaceToken;
 
-const tokens: Parser<LambdaToken[], string> = many(
-  alt<LambdaToken, string>(
-    map((id) => ({ kind: "variable", identifier: id }), identifier),
-    map((id) => ({ kind: "binder", identifier: id }), binder),
-    map(() => ({ kind: "lparen" }), lparen),
-    map(() => ({ kind: "rparen" }), rparen),
-    map(() => ({ kind: "whitespace" }), whitespace)
+const tokens: Parser<ExpressionToken[], string> = many(
+  alt<ExpressionToken, string>(
+    map((identifier) => ({ kind: "identifier", identifier }), identifier),
+    seqr(lambda, success({ kind: "lambda" })),
+    seqr(dot, success({ kind: "dot" })),
+    seqr(lparen, success({ kind: "lparen" })),
+    seqr(rparen, success({ kind: "rparen" })),
+    map((whitespace) => ({ kind: "whitespace", whitespace }), whitespace)
   )
 );
 
-const variableToken: Parser<VariableToken, LambdaToken> = satisfy(
-  (t) => t.kind === "variable"
+const identifierToken: Parser<IdentifierToken, ExpressionToken> = satisfy(
+  (t) => t.kind === "identifier"
 );
-const binderToken: Parser<BinderToken, LambdaToken> = satisfy(
-  (t) => t.kind === "binder"
+const lambdaToken: Parser<LambdaToken, ExpressionToken> = satisfy(
+  (t) => t.kind === "lambda"
 );
-const lparenToken: Parser<LParenToken, LambdaToken> = satisfy(
+const dotToken: Parser<DotToken, ExpressionToken> = satisfy(
+  (t) => t.kind === "dot"
+);
+const lparenToken: Parser<LParenToken, ExpressionToken> = satisfy(
   (t) => t.kind === "lparen"
 );
-const rparenToken: Parser<RParenToken, LambdaToken> = satisfy(
+const rparenToken: Parser<RParenToken, ExpressionToken> = satisfy(
   (t) => t.kind === "rparen"
 );
 
 //=== lambda calculus parsing ===//
 
-const expression: Parser<Lambda.Expression, LambdaToken> = lazy(() =>
+const expression: Parser<Lambda.Expression, ExpressionToken> = lazy(() =>
   alt(application, term)
 );
-const variable: Parser<Lambda.Expression, LambdaToken> = map(
+const variable: Parser<Lambda.Expression, ExpressionToken> = map(
   Lambda.variable,
-  map((t) => t.identifier, variableToken)
+  map((t: IdentifierToken) => t.identifier, identifierToken)
 );
-const abstraction: Parser<Lambda.Expression, LambdaToken> = seq(
+const abstraction: Parser<Lambda.Expression, ExpressionToken> = seq(
   map(
     Lambda.abstraction,
-    map((t) => t.identifier, binderToken)
+    map(
+      (t: IdentifierToken) => t.identifier,
+      seql(seqr(lambdaToken, identifierToken), dotToken)
+    )
   ),
   expression
 );
-const parens: Parser<Lambda.Expression, LambdaToken> = seqr(
+const parens: Parser<Lambda.Expression, ExpressionToken> = seqr(
   lparenToken,
   seql(expression, rparenToken)
 );
-const term: Parser<Lambda.Expression, LambdaToken> = alt(
+const term: Parser<Lambda.Expression, ExpressionToken> = alt(
   parens,
   abstraction,
   variable
 );
-const application: Parser<Lambda.Expression, LambdaToken> = chainl1(
+const application: Parser<Lambda.Expression, ExpressionToken> = chainl1(
   term,
   success(Lambda.application)
 );
