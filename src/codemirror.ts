@@ -1,9 +1,25 @@
-import { EditorView, basicSetup } from "codemirror";
+import { basicSetup } from "codemirror";
+import { EditorSelection } from "@codemirror/state";
+import { EditorView } from "@codemirror/view";
+
+const lambdaExtension = EditorView.inputHandler.of((view, from, to, text) => {
+  if (text === "\\") {
+    view.dispatch({
+      changes: { from, to, insert: "λ" },
+      selection: EditorSelection.cursor(from + 1),
+      userEvent: "input.replace.lambda",
+    });
+    return true;
+  }
+  return false;
+});
+
+let editorView: EditorView;
 
 export function setupEditor(parentName: string) {
-  const editorView = new EditorView({
+  editorView = new EditorView({
     doc: "(λx.x)(λy.y)",
-    extensions: [basicSetup],
+    extensions: [basicSetup, lambdaExtension],
     parent: document.getElementById(parentName)!,
   });
 }
