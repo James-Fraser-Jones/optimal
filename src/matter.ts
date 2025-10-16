@@ -307,7 +307,7 @@ function matterExpression(
 export function addExpression(input: string) {
   Matter.Composite.clear(engine.world, true, true);
   addMouseControl(engine, render);
-  resetBounds(render);
+  //resetBounds(render);
   const expr = parseExpression(input);
   const sized = Lambda.sizeExpression(expr);
   const mattered = matterExpression(sized);
