@@ -2,11 +2,11 @@ import * as Lambda from "./lambda";
 
 //=== utils ===//
 
-const unshift: <T>(x: T) => (xs: T[]) => T[] = (x) => (xs) => [x, ...xs];
+const cons: <T>(x: T) => (xs: T[]) => T[] = (x) => (xs) => [x, ...xs];
 const foldl: <T>(op: (acc: T) => (curr: T) => T) => (list: T[]) => T =
   (op) => (list) =>
     list.reduce((acc, curr) => op(acc)(curr));
-const join: (arr: string[]) => string = (arr) => arr.join("");
+const concat: (arr: string[]) => string = (arr) => arr.join("");
 
 //=== parser type and runner ===//
 
@@ -143,7 +143,7 @@ const seqr: <A, B, U>(pa: Parser<A, U>, pb: Parser<B, U>) => Parser<B, U> = (
   );
 
 const many1: <T, U>(p: Parser<T, U>) => Parser<T[], U> = (p) =>
-  lazy(() => seq(map(unshift, p), many(p)));
+  lazy(() => seq(map(cons, p), many(p)));
 
 const many: <T, U>(p: Parser<T, U>) => Parser<T[], U> = (p) =>
   lazy(() => alt(many1(p), success([])));
@@ -164,10 +164,10 @@ const identifierHead = alt(charRange("a", "z"), char("_"));
 const identifierTail = many(
   alt(charRange("a", "z"), char("_"), charRange("A", "Z"), charRange("0", "9"))
 );
-const identifier = map(join, seq(map(unshift, identifierHead), identifierTail));
+const identifier = map(concat, seq(map(cons, identifierHead), identifierTail));
 
 const whitespace = map(
-  join,
+  concat,
   many1(
     alt(char(" "), char("\n"), char("\t"), char("\r"), char("\v"), char("\f"))
   )
