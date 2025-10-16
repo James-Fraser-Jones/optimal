@@ -21,7 +21,18 @@ body {
 
 #codemirror {
   flex: 1;
-  position: relative
+  position: relative;
+  z-index: 2;
+}
+
+.token-paren {
+  color: #2586be !important;
+  font-weight: bold;
+}
+
+.token-binder {
+  color: #a338bb !important;
+  font-weight: bold;
 }
 
 #matter {
