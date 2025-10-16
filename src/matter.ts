@@ -37,13 +37,49 @@ export function initializeMatter() {
 }
 
 //utils
-// function resetBounds(render: Matter.Render) {
-//   render.bounds = {
-//     min: { x: 0, y: 0 },
-//     max: { x: window.innerWidth, y: window.innerHeight },
-//   };
-//   updateMouse(render);
-// }
+function resetBounds(render: Matter.Render) {
+  render.bounds = {
+    min: { x: 0, y: 0 },
+    max: { x: parent.clientWidth, y: parent.clientHeight },
+  };
+  updateMouse(render);
+}
+function centerBounds(
+  render: Matter.Render,
+  expression: Lambda.SizedExpression
+) {
+  const exprWidth = expression.metadata.width * radius * 2;
+  const exprHeight = expression.metadata.height * radius * 3;
+  const s = Math.max(
+    exprWidth / parent.clientWidth,
+    exprHeight / parent.clientHeight
+  );
+  const offsetX = (exprWidth - parent.clientWidth * s) / 2;
+  const offsetY = (exprHeight - parent.clientHeight * s) / 2;
+  render.bounds = {
+    min: {
+      x: offsetX,
+      y: offsetY,
+    },
+    max: {
+      x: parent.clientWidth * s + offsetX,
+      y: parent.clientHeight * s + offsetY,
+    },
+  };
+
+  const extraScale = 0.75;
+  const centerX = (render.bounds.min.x + render.bounds.max.x) / 2;
+  render.bounds.min.x =
+    render.bounds.min.x + (render.bounds.min.x - centerX) * extraScale;
+  render.bounds.max.x =
+    render.bounds.max.x + (render.bounds.max.x - centerX) * extraScale;
+  const centerY = (render.bounds.min.y + render.bounds.max.y) / 2;
+  render.bounds.min.y =
+    render.bounds.min.y + (render.bounds.min.y - centerY) * extraScale;
+  render.bounds.max.y =
+    render.bounds.max.y + (render.bounds.max.y - centerY) * extraScale;
+  updateMouse(render);
+}
 function getScale(render: Matter.Render): Matter.Vector {
   return {
     x: (render.bounds.max.x - render.bounds.min.x) / render.options.width!,
@@ -181,10 +217,10 @@ interface MatterMetadata extends Lambda.SizeMetadata {
   label: HTMLElement;
 }
 type MatteredExpression = Lambda.Expression<MatterMetadata>;
-const radius = 40;
+const radius = 20;
 function matterExpression(
   expr: Lambda.SizedExpression,
-  topLeft: Matter.Vector = { x: 0, y: radius * 2 },
+  topLeft: Matter.Vector = { x: radius, y: radius * 2 },
   parent: MatteredExpression | null = null,
   position: "body" | "func" | "arg" | undefined = undefined
 ): MatteredExpression {
@@ -308,9 +344,9 @@ function matterExpression(
 export function addExpression(input: string) {
   Matter.Composite.clear(engine.world, true, true);
   addMouseControl(engine, render);
-  //resetBounds(render);
   const expr = parseExpression(input);
   const sized = Lambda.sizeExpression(expr);
+  centerBounds(render, sized);
   const mattered = matterExpression(sized);
   addMatteredExpression(engine, mattered);
 }
