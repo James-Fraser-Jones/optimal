@@ -11,6 +11,24 @@ body {
   box-sizing: border-box;
 }
 
+.container {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  width: 100%;
+  height: 100%;
+}
+
+#codemirror {
+  flex: 1;
+  position: relative
+}
+
+#matter {
+  flex: 1;
+  position: relative;
+}
+
 canvas {
   display: block;
   position: absolute;
@@ -19,7 +37,7 @@ canvas {
   box-sizing: border-box;
 }
 
-.input-container {
+/* .input-container {
   position: relative;
   z-index: 2;
   box-sizing: border-box;
@@ -44,7 +62,7 @@ input {
 
 input::placeholder {
   color: #00000066;
-}
+} */
 
 .label {
   position: absolute;

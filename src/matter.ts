@@ -8,21 +8,22 @@ const appColor = "#136F63";
 const varColor = "#FFBA08";
 const constraintColor = "#FFFFFF";
 
+let parent: HTMLElement;
 let engine: Matter.Engine;
 let render: Matter.Render;
 let runner: Matter.Runner;
 
 //main
-export function initializeMatter() {
-  const [windowWidth, windowHeight] = [window.innerWidth, window.innerHeight];
+export function initializeMatter(parentName: string) {
+  parent = document.getElementById(parentName)!;
   engine = Matter.Engine.create();
   runner = Matter.Runner.create();
   render = Matter.Render.create({
-    element: document.body,
+    element: parent,
     engine,
     options: {
-      width: windowWidth,
-      height: windowHeight,
+      width: parent.clientWidth,
+      height: parent.clientHeight,
       showAngleIndicator: false,
       wireframes: false,
       background: bgColor,
@@ -36,13 +37,13 @@ export function initializeMatter() {
 }
 
 //utils
-function resetBounds(render: Matter.Render) {
-  render.bounds = {
-    min: { x: 0, y: 0 },
-    max: { x: window.innerWidth, y: window.innerHeight },
-  };
-  updateMouse(render);
-}
+// function resetBounds(render: Matter.Render) {
+//   render.bounds = {
+//     min: { x: 0, y: 0 },
+//     max: { x: window.innerWidth, y: window.innerHeight },
+//   };
+//   updateMouse(render);
+// }
 function getScale(render: Matter.Render): Matter.Vector {
   return {
     x: (render.bounds.max.x - render.bounds.min.x) / render.options.width!,
@@ -323,7 +324,7 @@ function addMatteredExpression(
     expr.metadata.body,
     expr.metadata.constraint,
   ]);
-  document.body.appendChild(expr.metadata.label);
+  parent.appendChild(expr.metadata.label);
   Lambda.match(
     expr,
     (abs) => {
