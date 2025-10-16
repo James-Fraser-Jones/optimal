@@ -1,6 +1,7 @@
 import { basicSetup } from "codemirror";
 import { EditorSelection } from "@codemirror/state";
 import { EditorView } from "@codemirror/view";
+import { addExpression } from "./matter";
 
 const lambdaExtension = EditorView.inputHandler.of((view, from, to, text) => {
   if (text === "\\") {
@@ -14,12 +15,21 @@ const lambdaExtension = EditorView.inputHandler.of((view, from, to, text) => {
   return false;
 });
 
+const changeListener = EditorView.updateListener.of((update) => {
+  if (update.docChanged) {
+    const currentText = update.state.doc.toString();
+    addExpression(currentText);
+  }
+});
+
 let editorView: EditorView;
 
-export function setupEditor(parentName: string) {
+export function initializeCodeMirror() {
+  const input = "(λx.x)(λy.y)";
   editorView = new EditorView({
-    doc: "(λx.x)(λy.y)",
-    extensions: [basicSetup, lambdaExtension],
-    parent: document.getElementById(parentName)!,
+    doc: input,
+    extensions: [basicSetup, lambdaExtension, changeListener],
+    parent: document.getElementById("codemirror")!,
   });
+  addExpression(input);
 }

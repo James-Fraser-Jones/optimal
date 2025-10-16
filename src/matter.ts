@@ -14,8 +14,8 @@ let render: Matter.Render;
 let runner: Matter.Runner;
 
 //main
-export function initializeMatter(parentName: string) {
-  parent = document.getElementById(parentName)!;
+export function initializeMatter() {
+  parent = document.getElementById("matter")!;
   engine = Matter.Engine.create();
   runner = Matter.Runner.create();
   render = Matter.Render.create({
