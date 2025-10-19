@@ -59,13 +59,13 @@ const largerFontTheme = EditorView.theme({
   },
 });
 
-let editorView: EditorView;
+// let editorView: EditorView;
 
 export function initializeCodeMirror() {
   const newlines = "\n".repeat(49);
   let input = "(λx.x)(λy.y)";
   input += newlines;
-  editorView = new EditorView({
+  new EditorView({
     doc: input,
     extensions: [
       basicSetup,

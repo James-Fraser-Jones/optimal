@@ -142,7 +142,7 @@ export function sizeExpression(expr: Expression): SizedExpression {
       };
       return sized;
     },
-    (v) => {
+    (_) => {
       sized.metadata = {
         width: 1,
         height: 1,

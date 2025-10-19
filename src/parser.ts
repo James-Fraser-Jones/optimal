@@ -34,10 +34,10 @@ const runParser: <T, U>(parser: Parser<T, U>, input: U[]) => T = (
 
 //=== fundamental parser combinators ===//
 
-const failure: (message: string) => Parser<any, any> = (message) => () => ({
-  error: true,
-  message: `FAILURE: ${message}`,
-});
+// const failure: (message: string) => Parser<any, any> = (message) => () => ({
+//   error: true,
+//   message: `FAILURE: ${message}`,
+// });
 
 const success: <T, U>(value: T) => Parser<T, U> = (value) => (input) => ({
   error: false,

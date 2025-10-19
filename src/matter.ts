@@ -37,13 +37,13 @@ export function initializeMatter() {
 }
 
 //utils
-function resetBounds(render: Matter.Render) {
-  render.bounds = {
-    min: { x: 0, y: 0 },
-    max: { x: parent.clientWidth, y: parent.clientHeight },
-  };
-  updateMouse(render);
-}
+// function resetBounds(render: Matter.Render) {
+//   render.bounds = {
+//     min: { x: 0, y: 0 },
+//     max: { x: parent.clientWidth, y: parent.clientHeight },
+//   };
+//   updateMouse(render);
+// }
 function centerBounds(
   render: Matter.Render,
   expression: Lambda.SizedExpression
