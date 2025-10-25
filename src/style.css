@@ -25,6 +25,17 @@ body {
   z-index: 2;
 }
 
+#matter {
+  flex: 1;
+  position: relative;
+  display: none;
+}
+
+#d3 {
+  flex: 1;
+  position: relative;
+}
+
 .token-paren {
   color: #2586be !important;
   font-weight: bold;
@@ -33,11 +44,6 @@ body {
 .token-binder {
   color: #a338bb !important;
   font-weight: bold;
-}
-
-#matter {
-  flex: 1;
-  position: relative;
 }
 
 canvas {
