@@ -28,12 +28,13 @@ body {
 #matter {
   flex: 1;
   position: relative;
-  display: none;
+  /* display: none; */
 }
 
 #d3 {
   flex: 1;
   position: relative;
+  display: none;
 }
 
 .token-paren {
