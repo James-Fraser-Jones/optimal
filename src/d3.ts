@@ -4,7 +4,6 @@ import dataJson from "../d3data2.json";
 interface Node extends d3.SimulationNodeDatum {
   id: string;
   group: string;
-  radius: number;
 }
 
 interface Link extends d3.SimulationLinkDatum<Node> {
@@ -69,9 +68,10 @@ export function initializeD3() {
   nodeGroup
     .append("text")
     .text((d) => d.id)
-    .attr("font-size", "10px")
-    .attr("x", 8)
-    .attr("y", 3)
+    .attr("font-size", "8px")
+    .attr("x", 0)
+    .attr("y", 2)
+    .attr("text-anchor", "middle") // Centers the text horizontally
     .attr(
       "style",
       "user-select: none; -webkit-user-select: none; pointer-events: none;"
