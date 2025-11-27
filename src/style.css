@@ -30,14 +30,14 @@ body {
   flex: 1;
   min-width: 0;
   position: relative;
-  /* display: none; */
+  display: none;
 }
 
 #d3 {
   flex: 1;
   min-width: 0;
   position: relative;
-  display: none;
+  /* display: none; */
 }
 
 .token-paren {

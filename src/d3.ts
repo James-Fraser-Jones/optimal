@@ -20,7 +20,6 @@ interface GraphData {
 }
 
 export function initializeD3() {
-  //setting up the svg canvas
   const parent = document.getElementById("d3")!;
   const width = parent.clientWidth;
   const height = parent.clientHeight;
@@ -32,7 +31,8 @@ export function initializeD3() {
     .attr("style", "max-width: 100%; height: auto;");
   parent.append(svg.node()!);
 
-  //setting up the simulation
+  const g = svg.append("g");
+
   const data: GraphData = dataJson as GraphData;
   const simulation = d3
     .forceSimulation(data.nodes)
@@ -43,18 +43,9 @@ export function initializeD3() {
     .force("charge", d3.forceManyBody())
     .force("x", d3.forceX())
     .force("y", d3.forceY());
-  simulation.on("tick", () => {
-    link
-      .attr("x1", (d) => (d.source as Node).x!)
-      .attr("y1", (d) => (d.source as Node).y!)
-      .attr("x2", (d) => (d.target as Node).x!)
-      .attr("y2", (d) => (d.target as Node).y!);
-    node.attr("cx", (d) => (d as Node).x!).attr("cy", (d) => (d as Node).y!);
-  });
 
-  //drawing svg elements
   const color = d3.scaleOrdinal(d3.schemeCategory10);
-  const link = svg
+  const link = g
     .append("g")
     .attr("stroke", "#999")
     .attr("stroke-opacity", 0.6)
@@ -62,7 +53,7 @@ export function initializeD3() {
     .data(data.links)
     .join("line")
     .attr("stroke-width", (d) => Math.sqrt(d.value));
-  const node = svg
+  const node = g
     .append("g")
     .attr("stroke", "#fff")
     .attr("stroke-width", 1.5)
@@ -72,10 +63,8 @@ export function initializeD3() {
     .attr("r", 5)
     .attr("fill", (d) => color(d.group));
 
-  //adding title elements
   node.append("title").text((d) => d.id);
 
-  //drag functionality
   node.call(
     (d3 as any)
       .drag()
@@ -98,4 +87,28 @@ export function initializeD3() {
         event.subject.fy = null;
       })
   );
+
+  function zoomed({ transform }: any) {
+    g.attr("transform", transform);
+  }
+
+  const zoom = d3
+    .zoom<SVGSVGElement, unknown>()
+    .on("zoom", zoomed)
+    .filter((event) => event.button === 2 || event.type === "wheel");
+
+  svg.on("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
+  svg.call(zoom as any);
+
+  simulation.on("tick", () => {
+    link
+      .attr("x1", (d) => (d.source as Node).x!)
+      .attr("y1", (d) => (d.source as Node).y!)
+      .attr("x2", (d) => (d.target as Node).x!)
+      .attr("y2", (d) => (d.target as Node).y!);
+    node.attr("cx", (d) => (d as Node).x!).attr("cy", (d) => (d as Node).y!);
+  });
 }
