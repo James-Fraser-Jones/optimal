@@ -1,11 +1,10 @@
 import * as d3 from "d3";
-import dataJson from "../d3data.json";
+import dataJson from "../d3data2.json";
 
 interface Node extends d3.SimulationNodeDatum {
   id: string;
   group: string;
   radius: number;
-  citing_patents_count: number;
 }
 
 interface Link extends d3.SimulationLinkDatum<Node> {
@@ -53,17 +52,32 @@ export function initializeD3() {
     .data(data.links)
     .join("line")
     .attr("stroke-width", (d) => Math.sqrt(d.value));
-  const node = g
+
+  const nodeGroup = g
     .append("g")
-    .attr("stroke", "#fff")
-    .attr("stroke-width", 1.5)
-    .selectAll("circle")
+    .attr("stroke", "#000000ff")
+    .attr("stroke-width", 0.5)
+    .selectAll("g")
     .data(data.nodes)
-    .join("circle")
+    .join("g");
+
+  nodeGroup
+    .append("circle")
     .attr("r", 5)
     .attr("fill", (d) => color(d.group));
 
-  node.append("title").text((d) => d.id);
+  nodeGroup
+    .append("text")
+    .text((d) => d.id)
+    .attr("font-size", "10px")
+    .attr("x", 8)
+    .attr("y", 3)
+    .attr(
+      "style",
+      "user-select: none; -webkit-user-select: none; pointer-events: none;"
+    );
+
+  const node = nodeGroup;
 
   node.call(
     (d3 as any)
@@ -109,6 +123,9 @@ export function initializeD3() {
       .attr("y1", (d) => (d.source as Node).y!)
       .attr("x2", (d) => (d.target as Node).x!)
       .attr("y2", (d) => (d.target as Node).y!);
-    node.attr("cx", (d) => (d as Node).x!).attr("cy", (d) => (d as Node).y!);
+    node.attr(
+      "transform",
+      (d) => `translate(${(d as Node).x!}, ${(d as Node).y!})`
+    );
   });
 }
