@@ -59,6 +59,27 @@ const largerFontTheme = EditorView.theme({
   },
 });
 
+const customScrollbarTheme = EditorView.theme({
+  "& .cm-scroller": {
+    "&::-webkit-scrollbar": {
+      width: "6px",
+      height: "6px",
+    },
+    "&::-webkit-scrollbar-thumb": {
+      backgroundColor: "#80808066",
+      borderRadius: "3px",
+      "&:hover": {
+        backgroundColor: "#80808099",
+      },
+    },
+    "&::-webkit-scrollbar-track": {
+      backgroundColor: "transparent",
+    },
+    scrollbarWidth: "thin",
+    scrollbarColor: "#80808066 transparent",
+  },
+});
+
 // let editorView: EditorView;
 
 export function initializeCodeMirror() {
@@ -76,6 +97,7 @@ export function initializeCodeMirror() {
       largerFontTheme,
       highlightParens,
       highlightBinders,
+      customScrollbarTheme,
     ],
     parent: document.getElementById("codemirror")!,
   });

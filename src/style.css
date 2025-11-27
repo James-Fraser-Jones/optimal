@@ -21,18 +21,21 @@ body {
 
 #codemirror {
   flex: 1;
+  min-width: 0;
   position: relative;
   z-index: 2;
 }
 
 #matter {
   flex: 1;
+  min-width: 0;
   position: relative;
   /* display: none; */
 }
 
 #d3 {
   flex: 1;
+  min-width: 0;
   position: relative;
   display: none;
 }
@@ -54,33 +57,6 @@ canvas {
   z-index: 0;
   box-sizing: border-box;
 }
-
-/* .input-container {
-  position: relative;
-  z-index: 2;
-  box-sizing: border-box;
-  width: 100%;
-  padding: 20px;
-}
-
-input {
-  box-sizing: border-box;
-  width: 100%;
-  padding: 8px;
-  height: 60px;
-  font-size: 40px;
-  border: 1px solid #ffffff;
-  border-radius: 4px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  font-family: "Zen Kurenaido", sans-serif;
-  font-weight: 400;
-  font-style: normal;
-  color: #000000;
-}
-
-input::placeholder {
-  color: #00000066;
-} */
 
 .label {
   position: absolute;
