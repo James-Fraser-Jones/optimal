@@ -1,37 +1,43 @@
 import * as d3 from "d3";
-import dataJson from "../d3data2.json";
 
 interface Node extends d3.SimulationNodeDatum {
   id: string;
-  group: string;
+  type: "app" | "lam" | "var";
+  value?: string;
 }
-
 interface Link extends d3.SimulationLinkDatum<Node> {
   source: string | Node;
   target: string | Node;
-  value: number;
 }
-
-interface GraphData {
+export interface GraphData {
   nodes: Node[];
   links: Link[];
 }
 
-export function initializeD3() {
+export function initializeD3(data: GraphData) {
   const parent = document.getElementById("d3")!;
+  const existingSvg = document.getElementById("d3svg");
+  let transform;
+  if (existingSvg) {
+    transform = existingSvg
+      .querySelector(":scope > g")!
+      .getAttribute("transform");
+    parent.removeChild(existingSvg);
+  }
   const width = parent.clientWidth;
   const height = parent.clientHeight;
   const svg = d3
     .create("svg")
+    .attr("id", "d3svg")
     .attr("width", width)
     .attr("height", height)
     .attr("viewBox", [-width / 2, -height / 2, width, height])
     .attr("style", "max-width: 100%; height: auto;");
   parent.append(svg.node()!);
-
   const g = svg.append("g");
-
-  const data: GraphData = dataJson as GraphData;
+  if (transform) {
+    g.attr("transform", transform);
+  }
   const simulation = d3
     .forceSimulation(data.nodes)
     .force(
@@ -41,7 +47,6 @@ export function initializeD3() {
     .force("charge", d3.forceManyBody())
     .force("x", d3.forceX())
     .force("y", d3.forceY());
-
   const color = d3.scaleOrdinal(d3.schemeCategory10);
   const link = g
     .append("g")
@@ -50,8 +55,7 @@ export function initializeD3() {
     .selectAll("line")
     .data(data.links)
     .join("line")
-    .attr("stroke-width", (d) => Math.sqrt(d.value));
-
+    .attr("stroke-width", 1);
   const nodeGroup = g
     .append("g")
     .attr("stroke", "#000000ff")
@@ -59,26 +63,22 @@ export function initializeD3() {
     .selectAll("g")
     .data(data.nodes)
     .join("g");
-
   nodeGroup
     .append("circle")
     .attr("r", 5)
-    .attr("fill", (d) => color(d.group));
-
+    .attr("fill", (d) => color(d.type));
   nodeGroup
     .append("text")
-    .text((d) => d.id)
+    .text(getNodeText)
     .attr("font-size", "8px")
     .attr("x", 0)
     .attr("y", 2)
-    .attr("text-anchor", "middle") // Centers the text horizontally
+    .attr("text-anchor", "middle")
     .attr(
       "style",
       "user-select: none; -webkit-user-select: none; pointer-events: none;"
     );
-
   const node = nodeGroup;
-
   node.call(
     (d3 as any)
       .drag()
@@ -101,22 +101,17 @@ export function initializeD3() {
         event.subject.fy = null;
       })
   );
-
   function zoomed({ transform }: any) {
     g.attr("transform", transform);
   }
-
   const zoom = d3
     .zoom<SVGSVGElement, unknown>()
     .on("zoom", zoomed)
     .filter((event) => event.button === 2 || event.type === "wheel");
-
   svg.on("contextmenu", (event) => {
     event.preventDefault();
   });
-
   svg.call(zoom as any);
-
   simulation.on("tick", () => {
     link
       .attr("x1", (d) => (d.source as Node).x!)
@@ -128,4 +123,15 @@ export function initializeD3() {
       (d) => `translate(${(d as Node).x!}, ${(d as Node).y!})`
     );
   });
+}
+
+function getNodeText(d: Node): string {
+  switch (d.type) {
+    case "app":
+      return "@";
+    case "lam":
+      return `λ${d.value}`;
+    case "var":
+      return d.value ?? "";
+  }
 }
